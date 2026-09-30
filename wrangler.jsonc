@@ -20,7 +20,7 @@
 		"APP_NAME": "New Albums via Email",
 		"FRONTEND_ROOT_URL": "https://newalbumsviaemail.com",
 		"SYSTEM_EMAIL_ADDRESS": "noreply@newalbumsviaemail.com",
-		"ADMIN_EMAIL_ADDRESS": "elliot@icebergweb.com.au",
+		"ADMIN_EMAIL_ADDRESS": "ellfish@gmail.com",
 		"ADMIN_FULL_NAME": "Elliot Fisher",
 		"MAILGUN_API_URL": "https://api.mailgun.net/v3/",
 		"MAILGUN_DOMAIN": "newalbumsviaemail.com"
@@ -41,7 +41,7 @@
 				"APP_NAME": "New Albums via Email",
 				"FRONTEND_ROOT_URL": "https://newalbums-web-staging.ellfish.workers.dev",
 				"SYSTEM_EMAIL_ADDRESS": "noreply@newalbumsviaemail.com",
-				"ADMIN_EMAIL_ADDRESS": "elliot@icebergweb.com.au",
+				"ADMIN_EMAIL_ADDRESS": "ellfish@gmail.com",
 				"ADMIN_FULL_NAME": "Elliot Fisher",
 				"MAILGUN_API_URL": "https://api.mailgun.net/v3/",
 				"MAILGUN_DOMAIN": "newalbumsviaemail.com"
