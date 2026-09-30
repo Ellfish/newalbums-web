@@ -81,16 +81,11 @@ import Layout from '../layouts/Layout.astro';
 </Layout>
 
 <script>
-	// Ported from Home.js: the Spotify authorize URL is built client-side so the
-	// redirect_uri is always the current origin (same flow the old app used:
-	// implicit grant, show_dialog, limited read-only scopes).
-	const clientId = 'b61565f287d0410f9e2f13fc71140fcc';
-	const scopes = 'user-follow-read user-top-read user-read-email';
-	//Set to true to always show the Spotify auth dialog, even if already authenticated.
-	const showDialog = true;
+	// Builds the Spotify Authorization Code + PKCE URL client-side so the
+	// redirect_uri is always the current origin (same scopes as the old app).
+	import { getSpotifyAuthoriseUrl } from '../lib/spotify-auth';
 
-	const redirectUrl = encodeURIComponent(`${window.location.origin}/spotify-callback/`);
-	const spotifyAuthoriseUrl = `https://accounts.spotify.com/authorize?client_id=${clientId}&response_type=token&redirect_uri=${redirectUrl}&scope=${encodeURIComponent(scopes)}&show_dialog=${showDialog}`;
+	const spotifyAuthoriseUrl = await getSpotifyAuthoriseUrl();
 
 	document.getElementById('get-started')?.setAttribute('href', spotifyAuthoriseUrl);
 </script>

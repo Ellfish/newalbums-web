@@ -14,6 +14,8 @@ import Layout from '../layouts/Layout.astro';
 
 <script>
 	// Vanilla JS port of FollowedArtistsList + FollowedArtistsListItem + SubscribeForm
+	import { getAccessToken, clearAccessToken } from '../lib/spotify-auth';
+
 	interface SpotifyArtist {
 		id: string;
 		name: string;
@@ -217,11 +219,11 @@ import Layout from '../layouts/Layout.astro';
 				artists: artists
 					.filter((artist) => artist.selected)
 					.map((artist) => ({ spotifyId: artist.id, name: artist.name })),
-				spotifyAccessToken: sessionStorage.getItem('spotifyAccessToken'),
+				spotifyAccessToken: getAccessToken(),
 			});
 
 			sessionStorage.setItem('subscribeResult', JSON.stringify(result));
-			sessionStorage.removeItem('spotifyAccessToken');
+			clearAccessToken();
 			window.location.replace('/subscribe-success');
 		} catch (e) {
 			holder.innerHTML = '';
@@ -242,7 +244,7 @@ import Layout from '../layouts/Layout.astro';
 	}
 
 	async function init(): Promise<void> {
-		const accessToken = sessionStorage.getItem('spotifyAccessToken');
+		const accessToken = getAccessToken();
 
 		if (!accessToken) {
 			showError('No Spotify access token set. Please go back and try again.');

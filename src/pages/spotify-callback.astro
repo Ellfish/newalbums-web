@@ -12,15 +12,23 @@ import Layout from '../layouts/Layout.astro';
 </Layout>
 
 <script>
-	// Ported from SpotifyCallback.js: reads the access token from the URL hash
-	// (implicit grant) or the error from the query string, then hands off to the
-	// subscribe page. The token is held in sessionStorage for the remainder of
-	// the flow only.
-	const searchValues = new URLSearchParams(window.location.search);
-	const hashValues = new URLSearchParams(window.location.hash.substring(1));
+	// Ported from SpotifyCallback.js, upgraded from the (now removed) implicit
+	// grant to Authorization Code + PKCE: exchanges the code query param for an
+	// access token, validating state. The token is held in sessionStorage for
+	// the remainder of the flow only.
+	import { exchangeCodeForToken, storeAccessToken } from '../lib/spotify-auth';
 
+	function escapeHtml(value: string): string {
+		return value
+			.replaceAll('&', '&amp;')
+			.replaceAll('<', '&lt;')
+			.replaceAll('>', '&gt;')
+			.replaceAll('"', '&quot;')
+			.replaceAll("'", '&#039;');
+	}
+
+	const searchValues = new URLSearchParams(window.location.search);
 	const error = searchValues.get('error');
-	const accessToken = hashValues.get('access_token');
 
 	const heading = document.getElementById('heading')!;
 	const content = document.getElementById('content')!;
@@ -29,11 +37,15 @@ import Layout from '../layouts/Layout.astro';
 		heading.textContent = 'Cancelled';
 		content.innerHTML =
 			'<p>You must authorise access to your Spotify account so we can read your followed artists. <a href="/">Go back and try again.</a></p>';
-	} else if (accessToken) {
-		sessionStorage.setItem('spotifyAccessToken', accessToken);
-		window.location.replace('/subscribe-to-artists');
 	} else {
-		heading.textContent = 'Error';
-		content.innerHTML = '<p>No Spotify access token set. Please <a href="/">go back and try again.</a></p>';
+		try {
+			const accessToken = await exchangeCodeForToken(searchValues);
+			storeAccessToken(accessToken);
+			window.location.replace('/subscribe-to-artists');
+		} catch (e) {
+			const message = e instanceof Error ? e.message : String(e);
+			heading.textContent = 'Error';
+			content.innerHTML = `<p>${escapeHtml(message)}</p><p>Please <a href="/">go back and try again.</a></p>`;
+		}
 	}
 </script>
