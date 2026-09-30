@@ -3,7 +3,7 @@ import { env } from 'cloudflare:workers';
 import { readJsonBody, jsonResponse, errorResponse } from '../../../lib/api';
 import { normaliseEmailAddress, getOrCreateSubscriber } from '../../../lib/repo/subscribers';
 import { getOrCreateArtists } from '../../../lib/repo/artists';
-import { subscribeToArtists, MAX_PER_SUBSCRIBER } from '../../../lib/repo/subscriptions';
+import { subscribeToArtists, getSubscribeStatusMessage } from '../../../lib/repo/subscriptions';
 import { getUserEmail } from '../../../lib/spotify';
 import { sendVerificationEmail, sendNewSubscriberNotification } from '../../../lib/emails/notifications';
 
@@ -81,13 +81,7 @@ export const POST: APIRoute = async ({ request }) => {
 		}
 
 		//Ported from SubscribeToArtistsOutput.SetStatusMessage
-		let statusMessage = `Subscribed to ${newSubscriptionsCount} new artist${newSubscriptionsCount === 1 ? '' : 's'}. `;
-		if (existingSubscriptionsCount > 0) {
-			statusMessage += `You have existing subscriptions to ${existingSubscriptionsCount} artist${existingSubscriptionsCount === 1 ? '' : 's'}. `;
-		}
-		if (limitReached) {
-			statusMessage += `You've now reached the limit of ${MAX_PER_SUBSCRIBER} artist subscriptions, and can't subscribe to any more (sorry).`;
-		}
+		const statusMessage = getSubscribeStatusMessage(existingSubscriptionsCount, newSubscriptionsCount, limitReached);
 
 		return jsonResponse({
 			statusMessage,

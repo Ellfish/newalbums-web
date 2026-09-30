@@ -6,6 +6,8 @@
     "./worker-configuration.d.ts"
   ],
   "exclude": [
-    "dist"
+    "dist",
+    "test",
+    "vitest.config.ts"
   ]
 }

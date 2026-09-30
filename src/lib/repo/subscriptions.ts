@@ -9,6 +9,28 @@ export async function countSubscriptions(db: D1Database): Promise<number> {
 	return row?.Count ?? 0;
 }
 
+/**
+ * Ported from SubscribeToArtistsOutput.SetStatusMessage. Extracted from the
+ * endpoint so the exact wording is unit-testable.
+ */
+export function getSubscribeStatusMessage(
+	existingSubscriptionsCount: number,
+	newSubscriptionsCount: number,
+	limitReached: boolean,
+): string {
+	let message = `Subscribed to ${newSubscriptionsCount} new artist${newSubscriptionsCount === 1 ? '' : 's'}. `;
+
+	if (existingSubscriptionsCount > 0) {
+		message += `You have existing subscriptions to ${existingSubscriptionsCount} artist${existingSubscriptionsCount === 1 ? '' : 's'}. `;
+	}
+
+	if (limitReached) {
+		message += `You've now reached the limit of ${MAX_PER_SUBSCRIBER} artist subscriptions, and can't subscribe to any more (sorry).`;
+	}
+
+	return message;
+}
+
 /** Ported from SubscriptionAppService.SubscribeToArtists, including the MaxPerSubscriber cap */
 export async function subscribeToArtists(
 	db: D1Database,
