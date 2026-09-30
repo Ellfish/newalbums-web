@@ -72,8 +72,15 @@ async function assertOk(response: Response): Promise<void> {
  * artists (sorted by name) with top artists preselected, like the old API.
  */
 export async function getFollowedArtists(accessToken: string): Promise<SpotifyArtist[]> {
-	//Top artists are only used to preselect - never fail the request if this errors (same as .NET)
-	const topArtistIds = await getTopArtistIds(accessToken).catch(() => [] as string[]);
+	//Top artists are only used to preselect - never fail the request if this
+	//errors (same as .NET), but log it so failures are diagnosable in Worker logs
+	const topArtistIds = await getTopArtistIds(accessToken).catch((e) => {
+		console.error(
+			'Error getting top artists for preselection:',
+			e instanceof Error ? e.message : String(e),
+		);
+		return [] as string[];
+	});
 
 	const followedArtists: SpotifyArtist[] = [];
 	let afterArtistId: string | undefined;
