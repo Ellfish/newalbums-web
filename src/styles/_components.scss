@@ -1,1 +1,165 @@
-﻿
+﻿@use './variables' as *;
+
+// Loading spinner (replaces the old react-bootstrap Glyphicon spinner)
+.loading-spinner {
+	width: 40px;
+	height: 40px;
+	margin: 20px auto;
+	border-radius: 50%;
+	border: 4px solid rgba(255, 255, 255, 0.2);
+	border-top-color: $white;
+	animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+.error-message {
+	color: #f28b82;
+}
+
+// Sticky filter above the artist grid (replaces react-sticky with position: sticky)
+.sticky-artist-filter-container {
+	position: sticky;
+	top: 0;
+	z-index: 10;
+	padding: 5px 15px;
+	background-color: $colour-primary;
+
+	.artist-filter-input {
+		height: 42px;
+	}
+}
+
+.followed-artists-list-container {
+	.followed-artists-list {
+		margin-top: 40px;
+	}
+}
+
+// Artist tile, ported from FollowedArtistsListItem.scss
+.artist-container {
+	display: inline-block;
+	vertical-align: top;
+	width: 10%;
+	margin-bottom: 40px;
+	cursor: pointer;
+
+	&:not(:last-of-type) {
+		margin-right: 25px;
+	}
+
+	&.selected {
+		.artist-image {
+			border: 8px solid $spotify-green;
+		}
+
+		.artist-name {
+			color: $spotify-green;
+		}
+	}
+
+	//Some artist images aren't intrinsically square. Force them to fit within a square shape,
+	//which gets its width from .artist-container which is a dynamic width.
+	.square {
+		width: 100%;
+		position: relative;
+		margin-bottom: 10px;
+
+		&:after {
+			content: '';
+			display: block;
+			padding-bottom: 100%;
+		}
+
+		.artist-image {
+			display: block;
+			position: absolute;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			object-fit: cover;
+			border-radius: 50%;
+		}
+	}
+
+	.artist-name {
+		font-weight: bold;
+		text-align: center;
+		overflow-wrap: break-word;
+	}
+}
+
+@media (max-width: 1200px) {
+	.artist-container {
+		&:not(:last-of-type) {
+			margin-right: 22px;
+		}
+	}
+}
+
+@media (max-width: 991px) {
+	.artist-container {
+		width: 12%;
+
+		&:not(:last-of-type) {
+			margin-right: 32px;
+		}
+	}
+}
+
+@media (max-width: 767px) {
+	.artist-container {
+		width: 20%;
+		margin-bottom: 20px;
+
+		&:not(:last-of-type) {
+			margin-right: 15px;
+		}
+
+		.artist-name {
+			font-size: 14px;
+			line-height: 18px;
+			letter-spacing: -0.5px;
+		}
+	}
+}
+
+//Prevent mobile sticky hover on these when unselecting
+@media (hover: hover) {
+	.artist-container {
+		&:hover:not(.selected) {
+			.artist-image {
+				border: 4px solid $spotify-green;
+			}
+		}
+	}
+}
+
+// Subscribe form, ported from SubscribeForm.scss
+.subscribe-form-container {
+	margin-top: 100px;
+	//Prevents the footer jumping around when we display the loading spinner and success/error messages
+	min-height: 300px;
+
+	.email-warning {
+		color: $spotify-green;
+	}
+
+	.form-col {
+		@media (min-width: 768px) {
+			max-width: 600px;
+		}
+	}
+}
+
+// Verify email + unsubscribe confirmation, ported from their scss files
+.verify-container,
+.unsubscribe-container {
+	//Prevents the footer jumping around when we display the loading spinner and success/error messages
+	min-height: 200px;
+}

@@ -1,0 +1,282 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout>
+	<div class="page-container">
+		<h1>Select artists to subscribe to</h1>
+
+		<div id="subscribe-content">
+			<div class="loading-spinner"></div>
+		</div>
+	</div>
+</Layout>
+
+<script>
+	// Vanilla JS port of FollowedArtistsList + FollowedArtistsListItem + SubscribeForm
+	interface SpotifyArtist {
+		id: string;
+		name: string;
+		image: { url: string; width: number; height: number };
+		selected: boolean;
+	}
+
+	interface SubscribeResult {
+		statusMessage: string;
+		requiresEmailVerification: boolean;
+	}
+
+	const content = document.getElementById('subscribe-content')!;
+
+	function escapeHtml(value: string): string {
+		return value
+			.replaceAll('&', '&amp;')
+			.replaceAll('<', '&lt;')
+			.replaceAll('>', '&gt;')
+			.replaceAll('"', '&quot;')
+			.replaceAll("'", '&#039;');
+	}
+
+	function showError(message: string): void {
+		content.innerHTML = `<div class="error-message">${escapeHtml(message)}</div>`;
+	}
+
+	async function postJson<T>(url: string, body: unknown): Promise<T> {
+		const response = await fetch(url, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(body),
+		});
+		const data = (await response.json().catch(() => null)) as (T & { error?: string }) | null;
+		if (!response.ok || !data) {
+			throw new Error(data?.error ?? `Request failed with status ${response.status}`);
+		}
+		return data;
+	}
+
+	let artists: SpotifyArtist[] = [];
+	let spotifyEmail: string | null = null;
+
+	function numSelected(): number {
+		return artists.filter((artist) => artist.selected).length;
+	}
+
+	function renderForm(): void {
+		const preselectedCount = artists.filter((artist) => artist.selected).length;
+
+		content.innerHTML = `
+			<p class="m-b-40">
+				You're following ${artists.length} artists on Spotify.
+				${preselectedCount > 0 ? `We've preselected ${preselectedCount} of your top artists (according to Spotify) for you. ` : ''}
+				Tap or click artists to select them.
+			</p>
+
+			<button type="button" class="btn btn-primary m-b-20 m-r-10" id="select-all">Select All</button>
+			<button type="button" class="btn btn-primary m-b-20" id="select-none">Select None</button>
+
+			<div class="sticky-artist-filter-container">
+				<div class="form-group m-b-10">
+					<label class="control-label" for="artist-name-filter">Filter by name</label>
+					<input type="text" id="artist-name-filter" class="form-control artist-filter-input"
+						placeholder="eg: Crowded House" spellcheck="false" autocomplete="off" />
+				</div>
+			</div>
+
+			<div class="followed-artists-list-container">
+				<div class="followed-artists-list" id="artists-list"></div>
+			</div>
+
+			<div class="subscribe-form-container">
+				<div class="form-col">
+					<h3 id="subscribing-heading"></h3>
+
+					<div id="subscribe-form-holder"></div>
+				</div>
+			</div>`;
+
+		renderArtistList();
+		renderSubscribeForm();
+
+		document.getElementById('select-all')!.addEventListener('click', () => setSelectedAllArtists(true));
+		document.getElementById('select-none')!.addEventListener('click', () => setSelectedAllArtists(false));
+
+		const filterInput = document.getElementById('artist-name-filter')! as HTMLInputElement;
+		filterInput.addEventListener('input', () => renderArtistList(filterInput.value));
+	}
+
+	function renderArtistList(filter: string = ''): void {
+		const list = document.getElementById('artists-list')!;
+		list.textContent = '';
+
+		const filterLower = filter.trim().toLowerCase();
+
+		for (const artist of artists) {
+			if (filterLower && !artist.name.toLowerCase().includes(filterLower)) continue;
+
+			const container = document.createElement('div');
+			container.className = `artist-container${artist.selected ? ' selected' : ''}`;
+			container.addEventListener('click', () => {
+				artist.selected = !artist.selected;
+				container.className = `artist-container${artist.selected ? ' selected' : ''}`;
+				updateSubscribeForm();
+			});
+
+			const square = document.createElement('div');
+			square.className = 'square';
+
+			const image = document.createElement('img');
+			image.className = 'artist-image';
+			image.src = artist.image.url;
+			image.alt = artist.name;
+			image.loading = 'lazy';
+			square.appendChild(image);
+
+			const name = document.createElement('div');
+			name.className = 'artist-name';
+			name.textContent = artist.name;
+
+			container.appendChild(square);
+			container.appendChild(name);
+			list.appendChild(container);
+		}
+	}
+
+	function setSelectedAllArtists(selected: boolean): void {
+		if (selected) {
+			const filterInput = document.getElementById('artist-name-filter') as HTMLInputElement | null;
+			if (filterInput) {
+				filterInput.value = '';
+			}
+		}
+		for (const artist of artists) {
+			artist.selected = selected;
+		}
+		renderArtistList();
+		updateSubscribeForm();
+	}
+
+	function renderSubscribeForm(): void {
+		const holder = document.getElementById('subscribe-form-holder')!;
+		holder.innerHTML = `
+			<form id="subscribe-form">
+				<div class="form-group">
+					<label class="control-label" for="email">Your email</label>
+					<input type="email" id="email" class="form-control" placeholder="name@example.com"
+						spellcheck="false" required />
+					<div class="m-t-5 email-warning" id="email-warning" hidden>
+						Using a different email to your Spotify account requires an extra verification step.
+					</div>
+				</div>
+				<button type="submit" class="btn btn-primary btn-lg" id="subscribe-button">Subscribe</button>
+			</form>`;
+
+		const emailInput = document.getElementById('email')! as HTMLInputElement;
+		const emailWarning = document.getElementById('email-warning')!;
+		const form = document.getElementById('subscribe-form')!;
+
+		emailInput.addEventListener('input', () => {
+			emailWarning.hidden = !(spotifyEmail !== null && emailInput.value !== spotifyEmail);
+		});
+
+		if (spotifyEmail) {
+			emailInput.value = spotifyEmail;
+		} else {
+			emailWarning.hidden = false;
+		}
+
+		form.addEventListener('submit', (event) => {
+			event.preventDefault();
+			void handleSubmit();
+		});
+
+		updateSubscribeForm();
+	}
+
+	function updateSubscribeForm(): void {
+		const heading = document.getElementById('subscribing-heading');
+		const button = document.getElementById('subscribe-button') as HTMLButtonElement | null;
+		const selected = numSelected();
+
+		if (heading) {
+			heading.textContent = `Subscribing to ${selected} artist${selected === 1 ? '' : 's'}`;
+		}
+		if (button) {
+			button.disabled = selected === 0;
+		}
+	}
+
+	async function handleSubmit(): Promise<void> {
+		const emailInput = document.getElementById('email')! as HTMLInputElement;
+		const holder = document.getElementById('subscribe-form-holder')!;
+
+		holder.innerHTML = '<div class="loading-spinner"></div>';
+
+		try {
+			const result = await postJson<SubscribeResult>('/api/subscriptions/subscribe', {
+				emailAddress: emailInput.value,
+				artists: artists
+					.filter((artist) => artist.selected)
+					.map((artist) => ({ spotifyId: artist.id, name: artist.name })),
+				spotifyAccessToken: sessionStorage.getItem('spotifyAccessToken'),
+			});
+
+			sessionStorage.setItem('subscribeResult', JSON.stringify(result));
+			sessionStorage.removeItem('spotifyAccessToken');
+			window.location.replace('/subscribe-success');
+		} catch (e) {
+			holder.innerHTML = '';
+			const error = document.createElement('div');
+			error.className = 'error-message';
+			error.textContent = e instanceof Error ? e.message : String(e);
+			holder.appendChild(error);
+
+			const button = document.createElement('button');
+			button.type = 'button';
+			button.className = 'btn btn-primary btn-lg m-t-20';
+			button.textContent = 'Try again';
+			button.addEventListener('click', () => {
+				renderSubscribeForm();
+			});
+			holder.appendChild(button);
+		}
+	}
+
+	async function init(): Promise<void> {
+		const accessToken = sessionStorage.getItem('spotifyAccessToken');
+
+		if (!accessToken) {
+			showError('No Spotify access token set. Please go back and try again.');
+			return;
+		}
+
+		//Auto-fill their Spotify account email in parallel with the artist list.
+		//This is not essential, like the old app: errors just mean no prefill.
+		const emailPromise = postJson<{ email: string }>('/api/spotify/user-email', {
+			accessToken,
+		})
+			.then((data) => {
+				spotifyEmail = data.email;
+				const emailInput = document.getElementById('email') as HTMLInputElement | null;
+				if (emailInput && !emailInput.value) {
+					emailInput.value = data.email;
+				}
+			})
+			.catch(() => {
+				spotifyEmail = null;
+			});
+
+		try {
+			const data = await postJson<{ artists: SpotifyArtist[] }>('/api/spotify/followed-artists', {
+				accessToken,
+			});
+			artists = data.artists;
+			renderForm();
+			await emailPromise;
+			updateSubscribeForm();
+		} catch (e) {
+			showError(e instanceof Error ? e.message : String(e));
+		}
+	}
+
+	void init();
+</script>

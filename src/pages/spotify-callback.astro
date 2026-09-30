@@ -1,0 +1,39 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout>
+	<div class="page-container">
+		<h1 id="heading">Spotify</h1>
+		<div id="content">
+			<div class="loading-spinner"></div>
+		</div>
+	</div>
+</Layout>
+
+<script>
+	// Ported from SpotifyCallback.js: reads the access token from the URL hash
+	// (implicit grant) or the error from the query string, then hands off to the
+	// subscribe page. The token is held in sessionStorage for the remainder of
+	// the flow only.
+	const searchValues = new URLSearchParams(window.location.search);
+	const hashValues = new URLSearchParams(window.location.hash.substring(1));
+
+	const error = searchValues.get('error');
+	const accessToken = hashValues.get('access_token');
+
+	const heading = document.getElementById('heading')!;
+	const content = document.getElementById('content')!;
+
+	if (error) {
+		heading.textContent = 'Cancelled';
+		content.innerHTML =
+			'<p>You must authorise access to your Spotify account so we can read your followed artists. <a href="/">Go back and try again.</a></p>';
+	} else if (accessToken) {
+		sessionStorage.setItem('spotifyAccessToken', accessToken);
+		window.location.replace('/subscribe-to-artists');
+	} else {
+		heading.textContent = 'Error';
+		content.innerHTML = '<p>No Spotify access token set. Please <a href="/">go back and try again.</a></p>';
+	}
+</script>

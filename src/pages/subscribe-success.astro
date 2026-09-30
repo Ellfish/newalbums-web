@@ -1,0 +1,52 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout>
+	<div class="page-container">
+		<h1>Success!</h1>
+
+		<div id="subscribe-success-content"></div>
+	</div>
+</Layout>
+
+<script>
+	// Ported from SubscribeSuccess.js. Note: the old React code showed the
+	// "please verify your email" paragraph when verification was NOT required
+	// (inverted logic) - fixed here.
+	interface SubscribeResult {
+		statusMessage: string;
+		requiresEmailVerification: boolean;
+	}
+
+	const content = document.getElementById('subscribe-success-content')!;
+
+	const raw = sessionStorage.getItem('subscribeResult');
+	sessionStorage.removeItem('subscribeResult');
+
+	let result: SubscribeResult | null = null;
+	try {
+		result = raw ? (JSON.parse(raw) as SubscribeResult) : null;
+	} catch {
+		result = null;
+	}
+
+	if (!result) {
+		content.innerHTML = '<p>An unexpected error occurred. Please <a href="/">go back and try again.</a></p>';
+	} else {
+		const paragraph = document.createElement('p');
+		paragraph.textContent = result.statusMessage;
+		content.appendChild(paragraph);
+
+		const keepAnEye = document.createElement('p');
+		keepAnEye.textContent = 'Keep an eye on your email inbox for new album notifications.';
+		content.appendChild(keepAnEye);
+
+		if (result.requiresEmailVerification) {
+			const verify = document.createElement('p');
+			verify.textContent =
+				'But first please verify your email address by clicking the verification link in the email we just sent you.';
+			content.appendChild(verify);
+		}
+	}
+</script>

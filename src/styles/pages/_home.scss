@@ -1,8 +1,117 @@
+@use 'sass:math';
 @use '../variables' as *;
 
 .temp-content {
-  max-width: 600px;
-  padding: 0 20px;
-  margin: 0 auto;
-  text-align: center;
+	max-width: 600px;
+	padding: 0 20px;
+	margin: 0 auto;
+	text-align: center;
+}
+
+.home-content {
+	max-width: 900px;
+}
+
+// "How does it work" steps, ported from the old Home.scss (spinning vinyl)
+.how-does-it-work-container {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	justify-content: flex-start;
+
+	.how-does-it-work-step {
+		text-align: center;
+		width: 28%;
+		margin: 20px 0 40px 0;
+
+		.image-container {
+			$rps: math.div(60, 33.33); //Revolutions per second
+
+			position: relative;
+			animation: spin #{$rps}s linear infinite;
+			animation-play-state: paused;
+			cursor: grab;
+
+			&:hover {
+				animation-play-state: running;
+			}
+
+			&:active {
+				animation-play-state: paused;
+			}
+
+			img {
+				display: block;
+				width: 220px;
+				height: 220px;
+				margin: 0 auto 20px auto;
+				border-radius: 50%;
+				border: 40px solid black;
+			}
+
+			.center-hole {
+				$width: 8px;
+
+				position: absolute;
+				z-index: 10;
+				top: 50%;
+				left: 50%;
+				width: $width;
+				height: $width;
+				margin-top: -(math.div($width, 2));
+				margin-left: -(math.div($width, 2));
+				background-color: black;
+				border-radius: 50%;
+			}
+		}
+
+		h4 {
+			margin-top: 0;
+			color: $spotify-green;
+		}
+	}
+}
+
+@media (min-width: 768px) and (max-width: 1024px) {
+	.how-does-it-work-container {
+		.how-does-it-work-step {
+			.image-container {
+				img {
+					width: 200px;
+					height: 200px;
+				}
+			}
+		}
+	}
+}
+
+@media (min-width: 768px) {
+	.how-does-it-work-container {
+		.how-does-it-work-step {
+			&:not(:last-of-type) {
+				margin-right: 40px;
+			}
+		}
+	}
+}
+
+@media (max-width: 767px) {
+	.how-does-it-work-container {
+		.how-does-it-work-step {
+			width: 100%;
+
+			.image-container {
+				img {
+					width: 260px;
+					height: 260px;
+				}
+			}
+
+			h4 {
+				max-width: 320px;
+				margin-left: auto;
+				margin-right: auto;
+			}
+		}
+	}
 }

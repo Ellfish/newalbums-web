@@ -1,0 +1,77 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout>
+	<div class="page-container">
+		<h1 id="heading">Unsubscribe</h1>
+
+		<div id="unsubscribe-content" class="unsubscribe-container"></div>
+	</div>
+</Layout>
+
+<script>
+	// Ported from Unsubscribe.js: confirm and POST, per-artist or all
+	const searchValues = new URLSearchParams(window.location.search);
+
+	const unsubscribeToken = searchValues.get('unsubscribeToken');
+	const artistIdParam = searchValues.get('artistId');
+	const artistId = artistIdParam ? Number(artistIdParam) : undefined;
+
+	const heading = document.getElementById('heading')!;
+	const content = document.getElementById('unsubscribe-content')!;
+
+	function escapeHtml(value: string): string {
+		return value
+			.replaceAll('&', '&amp;')
+			.replaceAll('<', '&lt;')
+			.replaceAll('>', '&gt;')
+			.replaceAll('"', '&quot;')
+			.replaceAll("'", '&#039;');
+	}
+
+	function showForm(): void {
+		if (artistId) {
+			heading.textContent = 'Are you sure you want to unsubscribe from this artist?';
+		} else {
+			heading.textContent = 'Are you sure you want to unsubscribe from all artists?';
+		}
+
+		const form = document.createElement('form');
+		const button = document.createElement('button');
+		button.type = 'submit';
+		button.className = 'btn btn-primary btn-lg';
+		button.textContent = 'Unsubscribe';
+		form.appendChild(button);
+		content.appendChild(form);
+
+		form.addEventListener('submit', async (event) => {
+			event.preventDefault();
+			content.innerHTML = '<div class="loading-spinner"></div>';
+
+			try {
+				const response = await fetch('/api/subscriptions/unsubscribe', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ unsubscribeToken, artistId }),
+				});
+				const data = (await response.json().catch(() => null)) as { success?: boolean; error?: string } | null;
+
+				if (response.ok && data?.success) {
+					content.innerHTML = '<p>Successfully unsubscribed.</p>';
+				} else {
+					content.innerHTML = `<div class="error-message">${escapeHtml(data?.error ?? 'An unexpected error occurred.')}</div>`;
+				}
+			} catch {
+				content.innerHTML = '<div class="error-message">An unexpected error occurred. Please try again.</div>';
+			}
+		});
+	}
+
+	if (!unsubscribeToken) {
+		heading.textContent = 'Invalid Unsubscribe Link';
+		content.innerHTML = '<p>Please ensure you click one of the unsubscribe links from an email.</p>';
+	} else {
+		showForm();
+	}
+</script>

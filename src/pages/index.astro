@@ -4,13 +4,93 @@ import Layout from '../layouts/Layout.astro';
 
 <Layout>
 	<div class="page-container">
-		<div class="temp-content">
-			<h1>New Albums will return!</h1>
-			<p>...allowing you to subscribe to new artists and modify your existing subscriptions.</p>
+		<div class="home-content">
+			<h1>Subscribe to new album releases on&nbsp;Spotify</h1>
+
+			<h2>Who is this for?</h2>
+
 			<p>
-				In the meantime, please email hello@newalbumsviaemail.com if you wish to unsubscribe from a certain
-				artist, or from all emails.
+				You need a Spotify account, premium or free, which follows at least one artist. You may know that
+				Spotify already sends weekly new release emails, however:
 			</p>
+
+			<ul>
+				<li>
+					We only email you about albums, which (we think) are more important to know about than single
+					releases, and therefore worthy of a spot in your crowded inbox.
+				</li>
+				<li>Spotify's emails are biased towards featured/promoted artists, and miss some artists.</li>
+				<li>
+					You may not care about new releases from all your followed artists, especially if you share an
+					account with someone. This app lets you choose which artists to be notified about.
+				</li>
+			</ul>
+
+			<h2>How does it work?</h2>
+
+			<p>It only takes a minute and you don't even need to register an account.</p>
+		</div>
+
+		<div class="how-does-it-work-container">
+			<div class="how-does-it-work-step">
+				<div class="image-container">
+					<img src="/images/how-does-it-work-step-1.jpg" alt="Allow Spotify access" width="220" height="220" />
+					<div class="center-hole"></div>
+				</div>
+
+				<h4>1.<br />Allow this app limited access to your Spotify data</h4>
+			</div>
+			<div class="how-does-it-work-step">
+				<div class="image-container">
+					<img src="/images/how-does-it-work-step-2.jpg" alt="Choose artists" width="220" height="220" />
+					<div class="center-hole"></div>
+				</div>
+
+				<h4>2.<br />Select which artists to subscribe to</h4>
+			</div>
+			<div class="how-does-it-work-step">
+				<div class="image-container">
+					<img src="/images/how-does-it-work-step-3.jpg" alt="Enter email address" width="220" height="220" />
+					<div class="center-hole"></div>
+				</div>
+
+				<h4>3.<br />Enter your email address and click Subscribe</h4>
+			</div>
+		</div>
+
+		<div class="home-content">
+			<p>
+				Our app checks for new album releases daily. If it finds one from an artist that you've subscribed
+				to, we'll send you an email notification. It's easy to unsubscribe at any time by clicking the link
+				in the email.
+			</p>
+
+			<h2>Ready?</h2>
+
+			<p>
+				Click the button below to let us access (some of) your Spotify data. The only data we access is your
+				followed artists (to let you choose which to subscribe to), your top artists (to pre-select your top
+				50 artists), and your email (for anti-spam verification). We will never sell or do anything unethical
+				with your data. You can even see our source code on
+				<a href="https://github.com/Ellfish/newalbumsviaemail">Github</a>.
+			</p>
+
+			<a id="get-started" class="btn btn-primary btn-lg m-t-50" href="#">Get Started</a>
 		</div>
 	</div>
 </Layout>
+
+<script>
+	// Ported from Home.js: the Spotify authorize URL is built client-side so the
+	// redirect_uri is always the current origin (same flow the old app used:
+	// implicit grant, show_dialog, limited read-only scopes).
+	const clientId = 'b61565f287d0410f9e2f13fc71140fcc';
+	const scopes = 'user-follow-read user-top-read user-read-email';
+	//Set to true to always show the Spotify auth dialog, even if already authenticated.
+	const showDialog = true;
+
+	const redirectUrl = encodeURIComponent(`${window.location.origin}/spotify-callback/`);
+	const spotifyAuthoriseUrl = `https://accounts.spotify.com/authorize?client_id=${clientId}&response_type=token&redirect_uri=${redirectUrl}&scope=${encodeURIComponent(scopes)}&show_dialog=${showDialog}`;
+
+	document.getElementById('get-started')?.setAttribute('href', spotifyAuthoriseUrl);
+</script>

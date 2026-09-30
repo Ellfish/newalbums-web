@@ -1,0 +1,76 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout>
+	<div class="page-container">
+		<h1>Verification</h1>
+
+		<div id="verify-content" class="verify-container"></div>
+	</div>
+</Layout>
+
+<script>
+	// Ported from VerifyEmail.js: confirm and POST the verify code
+	const searchValues = new URLSearchParams(window.location.search);
+
+	const emailAddress = searchValues.get('emailAddress');
+	const verifyCode = searchValues.get('verifyCode');
+
+	const content = document.getElementById('verify-content')!;
+
+	function escapeHtml(value: string): string {
+		return value
+			.replaceAll('&', '&amp;')
+			.replaceAll('<', '&lt;')
+			.replaceAll('>', '&gt;')
+			.replaceAll('"', '&quot;')
+			.replaceAll("'", '&#039;');
+	}
+
+	function showIntro(): void {
+		const intro = document.createElement('p');
+		intro.textContent = `Please click the button below to verify ${emailAddress}`;
+		content.appendChild(intro);
+	}
+
+	function showForm(): void {
+		const form = document.createElement('form');
+		const button = document.createElement('button');
+		button.type = 'submit';
+		button.className = 'btn btn-primary btn-lg';
+		button.textContent = 'Verify my email';
+		form.appendChild(button);
+		content.appendChild(form);
+
+		form.addEventListener('submit', async (event) => {
+			event.preventDefault();
+			content.innerHTML = '<div class="loading-spinner"></div>';
+
+			try {
+				const response = await fetch('/api/subscriber/verify-email', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ emailAddress, verifyCode }),
+				});
+				const data = (await response.json().catch(() => null)) as { verified?: boolean; error?: string } | null;
+
+				if (response.ok && data?.verified) {
+					content.innerHTML = '<p>Your email is now verified, and you can receive email notifications. Thank you.</p>';
+				} else {
+					content.innerHTML = `<div class="error-message">${escapeHtml(data?.error ?? 'An unexpected error occurred.')}</div>`;
+				}
+			} catch {
+				content.innerHTML = '<div class="error-message">An unexpected error occurred. Please try again.</div>';
+			}
+		});
+	}
+
+	if (!emailAddress || !verifyCode) {
+		document.querySelector('h1')!.textContent = 'Invalid Verify Link';
+		content.innerHTML = '<p>Please ensure you click the verify link or button in the email.</p>';
+	} else {
+		showIntro();
+		showForm();
+	}
+</script>

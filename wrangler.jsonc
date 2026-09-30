@@ -15,8 +15,39 @@
 			"database_id": "1aed5f42-6705-447c-8b04-378d0f355c38"
 		}
 	],
-	// Staging D1 (wired up as an environment in Phase 2):
-	// database_name: "newalbums-staging", database_id: "3f38c094-c34e-4813-88e3-9161625d33eb"
+	// Non-secret app config (secrets live in `wrangler secret put` / .dev.vars)
+	"vars": {
+		"APP_NAME": "New Albums via Email",
+		"FRONTEND_ROOT_URL": "https://newalbumsviaemail.com",
+		"SYSTEM_EMAIL_ADDRESS": "noreply@newalbumsviaemail.com",
+		"ADMIN_EMAIL_ADDRESS": "elliot@icebergweb.com.au",
+		"ADMIN_FULL_NAME": "Elliot Fisher",
+		"MAILGUN_API_URL": "https://api.mailgun.net/v3/",
+		"MAILGUN_DOMAIN": "newalbumsviaemail.com"
+	},
+	// Staging deployment (built + deployed with CLOUDFLARE_ENV=staging): same
+	// code, staging worker name, staging D1, and root URL for email links
+	"env": {
+		"staging": {
+			"name": "newalbums-web-staging",
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "newalbums-staging",
+					"database_id": "3f38c094-c34e-4813-88e3-9161625d33eb"
+				}
+			],
+			"vars": {
+				"APP_NAME": "New Albums via Email",
+				"FRONTEND_ROOT_URL": "https://newalbums-web-staging.ellfish.workers.dev",
+				"SYSTEM_EMAIL_ADDRESS": "noreply@newalbumsviaemail.com",
+				"ADMIN_EMAIL_ADDRESS": "elliot@icebergweb.com.au",
+				"ADMIN_FULL_NAME": "Elliot Fisher",
+				"MAILGUN_API_URL": "https://api.mailgun.net/v3/",
+				"MAILGUN_DOMAIN": "newalbumsviaemail.com"
+			}
+		}
+	},
 	"observability": {
 		"enabled": true
 	}
