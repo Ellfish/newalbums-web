@@ -25,11 +25,26 @@
 		"MAILGUN_API_URL": "https://api.mailgun.net/v3/",
 		"MAILGUN_DOMAIN": "newalbumsviaemail.com"
 	},
+	// Keep the workers.dev URL enabled as a fallback for the NAS job's API
+	// base URL (the public custom domain is the primary)
+	"workers_dev": true,
+	// Public domain for the production Worker (the zone is already on this
+	// Cloudflare account; MX/SPF/DKIM records are unaffected - a custom domain
+	// only takes over the web hostname routing)
+	"routes": [
+		{
+			"pattern": "newalbumsviaemail.com",
+			"custom_domain": true
+		}
+	],
 	// Staging deployment (built + deployed with CLOUDFLARE_ENV=staging): same
 	// code, staging worker name, staging D1, and root URL for email links
 	"env": {
 		"staging": {
 			"name": "newalbums-web-staging",
+			// Routes are inherited by environments - explicitly empty so a
+			// staging deploy can never take over the public custom domain
+			"routes": [],
 			"d1_databases": [
 				{
 					"binding": "DB",
