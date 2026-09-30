@@ -1,0 +1,93 @@
+@use './variables' as *;
+@use './mixins' as *;
+@use './helpers' as *;
+@use './typography' as *;
+@use './buttons' as *;
+@use './forms' as *;
+@use './components' as *;
+@use './pages/home' as *;
+
+html,
+body {
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  background-color: $spotify-black;
+}
+
+header {
+  height: auto;
+  padding: 50px 20px 100px 20px;
+  margin-bottom: 50px;
+  background-color: $colour-primary;
+  color: $white;
+  text-align: center;
+
+  .header-logo {
+    display: block;
+    width: 150px;
+    height: auto;
+    margin: 20px auto 40px auto;
+  }
+
+  .home-link {
+    display: inline-block;
+    text-decoration: none !important;
+  }
+
+  .app-name {
+    color: $white;
+    font-size: 50px;
+    font-weight: 700;
+    line-height: 75px;
+  }
+}
+
+@media (max-width: 767px) {
+  header {
+    padding-top: 25px;
+    padding-bottom: 50px;
+
+    .header-logo {
+      width: 100px;
+      margin: 0 auto 20px auto;
+    }
+
+    .app-name {
+      font-size: 40px;
+      line-height: 46px;
+      margin-bottom: 10px;
+    }
+  }
+}
+
+footer {
+  height: auto;
+  padding: 100px 20px;
+  background-color: $colour-primary;
+  text-align: center;
+
+  .footer-links-list {
+    margin-bottom: 20px;
+
+    li {
+      margin-bottom: 0;
+    }
+  }
+
+  .spotify-logo-container {
+    //Spotify brand guidelines specify minimum width of 70px
+    $logo-width: 140px;
+
+    .spotify-logo {
+      display: block;
+      margin: 20px auto 0 auto;
+      width: $logo-width;
+      height: auto;
+    }
+  }
+}
+
+.page-container {
+  padding-bottom: 100px;
+}

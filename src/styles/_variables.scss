@@ -1,0 +1,15 @@
+﻿@use "sass:color";
+
+// From: https://developer.spotify.com/branding-guidelines/
+$spotify-green: #1DB954;
+$spotify-black: #191414 default;
+$spotify-black: #232323; //From actual UI
+$white: #FFFFFF;
+
+//Our colours
+$colour-primary: #6247AA;
+$colour-primary-light: color.scale($colour-primary, $lightness: 20%);
+$colour-primary-lighter: color.scale($colour-primary, $lightness: 30%);
+
+//Layout
+$grid-padding-x: 15px;
