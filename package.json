@@ -23,6 +23,7 @@
     "@parcel/watcher@2.6.0": true
   },
   "devDependencies": {
+    "@types/node": "^26.6.3",
     "sass": "^1.105.1"
   }
 }

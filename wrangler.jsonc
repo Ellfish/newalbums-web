@@ -8,6 +8,15 @@
 		"directory": "./dist",
 		"binding": "ASSETS"
 	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "newalbums",
+			"database_id": "1aed5f42-6705-447c-8b04-378d0f355c38"
+		}
+	],
+	// Staging D1 (wired up as an environment in Phase 2):
+	// database_name: "newalbums-staging", database_id: "3f38c094-c34e-4813-88e3-9161625d33eb"
 	"observability": {
 		"enabled": true
 	}
