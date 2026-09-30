@@ -9,9 +9,7 @@
  */
 
 export const SPOTIFY_CLIENT_ID = 'b61565f287d0410f9e2f13fc71140fcc';
-// Note: user-top-read must be LAST - Spotify has a known quirk where granting
-// it fails (403 on /me/top-artists) when it isn't the final scope in the list
-export const SPOTIFY_SCOPES = 'user-follow-read user-read-email user-top-read';
+export const SPOTIFY_SCOPES = 'user-follow-read user-top-read user-read-email';
 //Always show the Spotify auth dialog, even if already authenticated (as the old app did)
 export const SPOTIFY_SHOW_DIALOG = true;
 

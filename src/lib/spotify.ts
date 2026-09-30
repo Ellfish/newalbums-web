@@ -132,7 +132,8 @@ export async function getFollowedArtists(accessToken: string): Promise<SpotifyAr
 }
 
 async function getTopArtistIds(accessToken: string): Promise<string[]> {
-	const url = new URL(`${SPOTIFY_API_BASE}/me/top-artists`);
+	// Endpoint is GET /me/top/{type} - note the SLASH: /me/top-artists returns 410 Gone
+	const url = new URL(`${SPOTIFY_API_BASE}/me/top/artists`);
 	url.searchParams.set('time_range', 'long_term');
 	url.searchParams.set('limit', String(MAX_LIMIT_TOP_ARTISTS));
 
