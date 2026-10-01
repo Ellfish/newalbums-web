@@ -17,6 +17,9 @@ import Layout from '../layouts/Layout.astro';
 	const unsubscribeToken = searchValues.get('unsubscribeToken');
 	const artistIdParam = searchValues.get('artistId');
 	const artistId = artistIdParam ? Number(artistIdParam) : undefined;
+	//Included in unsubscribe links in emails (for a nicer confirmation message);
+	//absent from older emails, which fall back to the generic wording
+	const artistName = searchValues.get('artistName');
 
 	const heading = document.getElementById('heading')!;
 	const content = document.getElementById('unsubscribe-content')!;
@@ -32,7 +35,9 @@ import Layout from '../layouts/Layout.astro';
 
 	function showForm(): void {
 		if (artistId) {
-			heading.textContent = 'Are you sure you want to unsubscribe from this artist?';
+			heading.textContent = artistName
+				? `Are you sure you want to unsubscribe from ${artistName}?`
+				: 'Are you sure you want to unsubscribe from this artist?';
 		} else {
 			heading.textContent = 'Are you sure you want to unsubscribe from all artists?';
 		}
@@ -58,7 +63,8 @@ import Layout from '../layouts/Layout.astro';
 				const data = (await response.json().catch(() => null)) as { success?: boolean; error?: string } | null;
 
 				if (response.ok && data?.success) {
-					content.innerHTML = '<p>Successfully unsubscribed.</p>';
+					const unsubscribedFrom = artistId && artistName ? ` from ${escapeHtml(artistName)}` : '';
+					content.innerHTML = `<p>Successfully unsubscribed${unsubscribedFrom}.</p>`;
 				} else {
 					content.innerHTML = `<div class="error-message">${escapeHtml(data?.error ?? 'An unexpected error occurred.')}</div>`;
 				}
