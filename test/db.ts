@@ -24,6 +24,7 @@ export async function applySchema(): Promise<void> {
 export async function resetDb(): Promise<void> {
 	const db = getDb();
 	await db.batch([
+		db.prepare('DELETE FROM NaAccessTokens'),
 		db.prepare('DELETE FROM NaSubscriptions'),
 		db.prepare('DELETE FROM NaSubscribers'),
 		db.prepare('DELETE FROM NaArtistAlbums'),

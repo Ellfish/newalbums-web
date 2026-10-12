@@ -14,6 +14,11 @@ export default defineConfig({
 					// Trailing slash on purpose: exercises the TrimEnd('/')
 					// behaviour ported from the .NET config
 					FRONTEND_ROOT_URL: 'https://newalbums-web-staging.ellfish.workers.dev/',
+					// Fake Spotify credentials (the real ones only ever live in
+					// .dev.vars / wrangler secrets): every fetch in the tests
+					// is mocked anyway
+					SPOTIFY_CLIENT_ID: 'test-client-id',
+					SPOTIFY_CLIENT_SECRET: 'test-client-secret',
 					// Deliberately NO MAILGUN_API_KEY: sendEmail() must return its
 					// not-configured error in tests, and never send anything
 				},

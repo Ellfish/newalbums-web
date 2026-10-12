@@ -1,33 +1,30 @@
 import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
 import { readJsonBody, jsonResponse, errorResponse } from '../../../lib/api';
-import { normaliseEmailAddress, getOrCreateSubscriber } from '../../../lib/repo/subscribers';
 import { getOrCreateArtists } from '../../../lib/repo/artists';
 import { subscribeToArtists, getSubscribeStatusMessage } from '../../../lib/repo/subscriptions';
-import { getUserEmail } from '../../../lib/spotify';
-import { sendVerificationEmail, sendNewSubscriberNotification } from '../../../lib/emails/notifications';
+import { getSubscriberByAccessToken, ACCESS_TOKEN_INVALID_MESSAGE } from '../../../lib/repo/access-tokens';
 
 export const prerender = false;
 
 interface Body {
-	emailAddress?: string;
-	spotifyAccessToken?: string;
+	token?: string;
 	artists?: { spotifyId?: string; name?: string }[];
 }
 
 /**
- * Port of SubscriptionController.SubscribeToArtists: get-or-create the
- * subscriber (auto-verifying their email if it matches their Spotify account
- * email, which is more secure than trusting a client flag), get-or-create the
- * artists, subscribe with the per-subscriber cap, then send any emails.
+ * Port of SubscriptionController.SubscribeToArtists, reworked for the
+ * email-first flow: the subscriber is resolved from the magic-link access
+ * token (never from client input), which also means their email was already
+ * verified by the link click - there's no separate verification step. Then:
+ * get-or-create the artists, subscribe with the per-subscriber cap.
  */
 export const POST: APIRoute = async ({ request }) => {
 	const body = await readJsonBody<Body>(request);
 
-	//Normalise before validating, so trailing whitespace/case never rejects a valid address
-	const emailAddress = normaliseEmailAddress(body?.emailAddress ?? '');
-	if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailAddress)) {
-		return errorResponse('Please provide a valid email address.', 400);
+	const subscriber = await getSubscriberByAccessToken(env.DB, body?.token ?? '');
+	if (!subscriber) {
+		return errorResponse(ACCESS_TOKEN_INVALID_MESSAGE, 401);
 	}
 
 	const artists = (body?.artists ?? []).filter(
@@ -40,22 +37,6 @@ export const POST: APIRoute = async ({ request }) => {
 	}
 
 	try {
-		//Get the email address from their Spotify account again to see if we can auto-verify
-		//their Subscriber email. If there are any errors, fall back to assuming we need to verify.
-		let emailVerified = false;
-		if (body?.spotifyAccessToken) {
-			try {
-				const spotifyEmail = await getUserEmail(body.spotifyAccessToken);
-				if (spotifyEmail && normaliseEmailAddress(spotifyEmail) === normaliseEmailAddress(emailAddress)) {
-					emailVerified = true;
-				}
-			} catch {
-				//Fall back to requiring email verification
-			}
-		}
-
-		const { subscriber, createdNewSubscriber } = await getOrCreateSubscriber(env.DB, emailAddress, emailVerified);
-
 		const artistRows = await getOrCreateArtists(
 			env.DB,
 			artists.map((artist) => ({ spotifyId: artist.spotifyId, name: artist.name })),
@@ -66,19 +47,6 @@ export const POST: APIRoute = async ({ request }) => {
 			subscriber.Id,
 			artistRows.map((artist) => artist.Id),
 		);
-
-		if (createdNewSubscriber) {
-			const error = await sendNewSubscriberNotification(subscriber.EmailAddress, artistRows.length);
-			if (error) console.error('Error sending new subscriber notification email:', error);
-		}
-
-		if (subscriber.EmailAddressVerified !== 1) {
-			const error = await sendVerificationEmail({
-				emailAddress: subscriber.EmailAddress,
-				emailVerifyCode: subscriber.EmailVerifyCode,
-			});
-			if (error) console.error('Error sending verification email:', error);
-		}
 
 		//Ported from SubscribeToArtistsOutput.SetStatusMessage
 		const statusMessage = getSubscribeStatusMessage(existingSubscriptionsCount, newSubscriptionsCount, limitReached);

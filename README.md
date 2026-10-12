@@ -1,14 +1,15 @@
 # New Albums via Email
 
-The web front-end, API and database for **[newalbumsviaemail.com](https://newalbumsviaemail.com)** — log in with Spotify, pick the artists you care about, and get an email when they release a new album. No account needed, and every email has an unsubscribe link.
+The web front-end, API and database for **[newalbumsviaemail.com](https://newalbumsviaemail.com)** — pick the artists you care about (import a public Spotify playlist, search, or both), and get an email when they release a new album. No Spotify login, no account needed, and every email has an unsubscribe link.
 
 Rebuilt from the original [React + ASP.NET app](https://github.com/Ellfish/newalbumsviaemail) onto Cloudflare's platform:
 
 - **[Astro](https://astro.build)** — mostly prerendered static pages, vanilla JS for the interactive subscribe flow (no framework runtime shipped to the browser)
 - **[Cloudflare Workers](https://developers.cloudflare.com/workers/)** — on-demand API routes + static asset serving, one deploy
 - **[Cloudflare D1](https://developers.cloudflare.com/d1/)** (SQLite at the edge) — subscribers, artists, albums and subscriptions
-- **Spotify Authorization Code + PKCE** — the whole login flow is client-side, so no Spotify client secret exists in this app
-- **Mailgun** for the verification + admin notification emails
+- **Spotify Client Credentials** — every Spotify call is made server-side with the app's own token (no user login, which is what keeps the app usable under Spotify's development-mode authorized-user cap)
+- **Magic-link sign-in** — passwordless: the emailed link both verifies the address and carries a 24h access token, which gates the search/import/subscribe APIs (no searching until the email is verified)
+- **Mailgun** for the magic-link + admin notification emails
 
 A companion daily job — a small .NET console app (in a private repo) scheduled on a home NAS — reads and writes this app's database via the token-protected **admin API** below: it polls Spotify for each subscribed artist's releases, emails subscribers when there's a new album, and records the albums it has notified about. The whole system runs comfortably within Cloudflare's free tier.
 
@@ -40,9 +41,8 @@ A companion daily job — a small .NET console app (in a private repo) scheduled
 
 | Route | Purpose |
 |---|---|
-| `/` | Home + how it works + Get Started (Spotify login) |
-| `/spotify-callback/` | PKCE code exchange after Spotify authorization |
-| `/subscribe-to-artists` | Artist picker (followed artists grid, top-50 preselected) + email |
+| `/` | Home + how it works + Get Started (link to the artist picker) |
+| `/subscribe-to-artists` | Email gate (magic link) → artist picker (public playlist import + artist search) + subscribe |
 | `/subscribe-success` | Confirmation + status message |
 | `/verify-email` | Email verification (from the emailed link) |
 | `/unsubscribe` | Unsubscribe — one artist or all, via the token links in emails |
@@ -54,10 +54,12 @@ Public endpoints (same-origin, POST JSON, called by the pages):
 
 | Endpoint | Purpose |
 |---|---|
-| `POST /api/spotify/followed-artists` | Followed artists + top-artist preselection (uses the browser's user access token) |
-| `POST /api/spotify/user-email` | The user's Spotify email (prefill + auto-verification) |
-| `POST /api/subscriptions/subscribe` | Get-or-create the subscriber, subscribe to artists (2000-artist cap) |
-| `POST /api/subscriber/verify-email` | Verify an email address |
+| `POST /api/auth/request-magic-link` | Step 1: get-or-create the subscriber, then email a 24h magic link |
+| `POST /api/auth/validate` | Step 2 (the link click): validate the token + mark the email verified |
+| `POST /api/spotify/playlist-artists` | Unique artists of a public playlist (magic-link token required; app token, same-origin only, cached per isolate) |
+| `POST /api/spotify/search-artists` | Artist search (magic-link token required; app token, market from the visitor's country, same-origin only, cached per isolate) |
+| `POST /api/subscriptions/subscribe` | Subscribe the token's (already verified) subscriber to artists (2000-artist cap) |
+| `POST /api/subscriber/verify-email` | Verify an email address (legacy: verification emails sent before the magic-link flow still work) |
 | `POST /api/subscriptions/unsubscribe` | Unsubscribe (one artist or all) |
 
 Admin endpoints (require the `X-Admin-Token` header — used by the daily job):
@@ -85,10 +87,12 @@ npm test        # Vitest, run inside workerd via @cloudflare/vitest-plugin
 npm run check   # TypeScript checks
 ```
 
-Local secrets live in `.dev.vars` (gitignored). For local dev you normally only need `ADMIN_TOKEN`; deliberately **omitting** `MAILGUN_API_KEY` means local runs never send real email — attempts just return a "not configured" error:
+Local secrets live in `.dev.vars` (gitignored). For local dev you need `ADMIN_TOKEN` plus the Spotify app credentials; deliberately **omitting** `MAILGUN_API_KEY` means local runs never send real email — attempts just return a "not configured" error:
 
 ```
 ADMIN_TOKEN=<32 random bytes, hex>
+SPOTIFY_CLIENT_ID=<from the Spotify dev dashboard>
+SPOTIFY_CLIENT_SECRET=<from the Spotify dev dashboard>
 ```
 
 ## Deployment
@@ -107,10 +111,12 @@ CLOUDFLARE_ENV=staging npm run build && npx wrangler deploy
 $env:CLOUDFLARE_ENV='staging'; npm run build; npx wrangler deploy
 ```
 
-Non-secret configuration (app name, URLs, admin notification email, Mailgun endpoint/domain) is in the `vars` of [`wrangler.jsonc`](wrangler.jsonc). Secrets are set with `wrangler secret put` (`ADMIN_TOKEN`, `MAILGUN_API_KEY`) and are never committed.
+Non-secret configuration (app name, URLs, admin notification email, Mailgun endpoint/domain, default search market) is in the `vars` of [`wrangler.jsonc`](wrangler.jsonc). Secrets are set with `wrangler secret put` for each environment (`--env staging` for staging): `ADMIN_TOKEN`, `MAILGUN_API_KEY`, `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET` — and are never committed. The Spotify credentials come from the [Spotify developer dashboard](https://developer.spotify.com/dashboard), and the app owner's Spotify account must stay on Premium for development-mode API access.
+
+The `NaAccessTokens` table (magic-link sign-in) is web-app-only — it's not part of the NAS-mirrored schema. Existing remote databases pick it up with the idempotent `npx wrangler d1 execute <database> --remote --file db/schema.sql` (`newalbums` for production, `newalbums-staging` for staging).
 
 ## Notes
 
-- The Spotify client ID in `src/lib/spotify-auth.ts` is public by design — browser apps ship it in their JS bundle regardless, and with PKCE there is no client secret to protect.
-- If you're wondering about Spotify's consent screen showing "your name, username, profile picture, Spotify followers and public playlists" — that's `user-read-private`, granted automatically to every app by Spotify. This app doesn't request it and never reads that data.
+- The Spotify client ID/secret pair is used server-side only (Worker secrets); the browser never sees any Spotify credential. All Spotify calls use the client-credentials flow with the app's own token — there is no user login anywhere.
+- Spotify development-mode quota is counted per developer **account** (shared with the NAS job's polling), which is why the app keeps its Spotify calls lean: per-isolate response caching, search debounce, and a 1,000-track playlist import cap. Spotify's February 2026 changes will eventually restrict playlist contents to playlists the requesting user owns — reading other people's public playlists works for now (postponed for existing integrations), and if/when that lands, playlist import degrades to a clear error message steering people to search.
 - The daily job's repo (the .NET app running on the NAS) is private because it contains operational secrets; everything that defines this app's behaviour is here.

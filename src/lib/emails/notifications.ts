@@ -3,33 +3,32 @@ import { getAppConfig } from '../config';
 import { renderAlertEmail } from './template';
 
 /**
- * The two emails the front-end sends, ported from SubscriptionController.
- * (The daily new-album notification emails stay on the NAS.)
+ * The emails the front-end sends. (The daily new-album notification emails
+ * stay on the NAS.)
  */
 
-/** Port of SubscriptionController.SendVerificationEmail */
-export async function sendVerificationEmail(subscriber: {
+/**
+ * The magic-link sign-in email (replaces the old verify-email email): the
+ * emailed link is both the email verification and the 24h sign-in for the
+ * artist picker.
+ */
+export async function sendMagicLinkEmail(subscriber: {
 	emailAddress: string;
-	emailVerifyCode: string | null;
+	magicLinkUrl: string;
 }): Promise<string | null> {
-	const { frontendRootUrl } = getAppConfig();
-	const verifyUrl = `${frontendRootUrl}/verify-email?emailAddress=${encodeURIComponent(
-		subscriber.emailAddress,
-	)}&verifyCode=${subscriber.emailVerifyCode}`;
-
 	const message: EmailMessage = {
-		subject: 'Please verify your email address',
+		subject: 'Your sign-in link',
 		text:
-			'Hello, please click the link below to verify your email address. This is required before you can receive new album emails:' +
-			`\r\n\r\n${verifyUrl}\r\n\r\nThanks for using New Albums via Email.`,
+			'Hello, please click the link below to continue choosing your artists. The link verifies your email address and keeps you signed in for 24 hours:' +
+			`\r\n\r\n${subscriber.magicLinkUrl}\r\n\r\nThanks for using New Albums via Email.`,
 		html: renderAlertEmail({
-			heading: 'Verify your email',
+			heading: 'Your sign-in link',
 			bodyParagraphs: [
 				{
 					htmlText:
-						'Hello, please click the button below to verify your email address. This is required before you can receive new album emails:',
+						'Hello, please click the button below to continue choosing your artists. The link verifies your email address and keeps you signed in for 24 hours:',
 				},
-				{ htmlText: 'Verify', buttonUrl: verifyUrl },
+				{ htmlText: 'Continue', buttonUrl: subscriber.magicLinkUrl },
 				{ htmlText: 'Thanks for using New Albums via Email.' },
 			],
 		}),
@@ -39,10 +38,10 @@ export async function sendVerificationEmail(subscriber: {
 	return sendEmail(message);
 }
 
-/** Port of SubscriptionController.SendNotificationEmail (new subscriber -> site admin) */
+/** Port of SubscriptionController.SendNotificationEmail (new subscriber -> site admin).
+ * Sent when a brand-new subscriber requests their first magic link. */
 export async function sendNewSubscriberNotification(
 	subscriberEmailAddress: string,
-	artistsCount: number,
 ): Promise<string | null> {
 	const { adminEmailAddress } = getAppConfig();
 	if (!adminEmailAddress) {
@@ -54,7 +53,7 @@ export async function sendNewSubscriberNotification(
 
 	const message: EmailMessage = {
 		subject: 'New subscriber to New Albums via Email',
-		text: `New subscriber: ${subscriberEmailAddress}, subscribed to: ${artistsCount} artists`,
+		text: `New subscriber: ${subscriberEmailAddress}`,
 		to: [{ address: adminEmailAddress, displayName: adminFullName }],
 	};
 

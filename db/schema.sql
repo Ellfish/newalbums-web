@@ -45,3 +45,15 @@ CREATE TABLE IF NOT EXISTS NaSubscriptions (
 );
 CREATE INDEX IF NOT EXISTS IX_NaSubscriptions_SubscriberId ON NaSubscriptions (SubscriberId);
 CREATE INDEX IF NOT EXISTS IX_NaSubscriptions_ArtistId ON NaSubscriptions (ArtistId);
+
+-- Web-app-only (NOT part of the NAS-mirrored schema): the 24h access tokens
+-- carried by the magic-link sign-in emails. CREATE TABLE IF NOT EXISTS makes
+-- applying this file to an existing (remote) database an idempotent migration.
+CREATE TABLE IF NOT EXISTS NaAccessTokens (
+	Id INTEGER PRIMARY KEY,
+	CreatedDate TEXT NOT NULL,
+	SubscriberId INTEGER NOT NULL,
+	Token TEXT NOT NULL,
+	ExpiresDate TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS IX_NaAccessTokens_Token ON NaAccessTokens (Token);

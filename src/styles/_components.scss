@@ -21,6 +21,96 @@
 	color: #f28b82;
 }
 
+// Artist picker "find artists" section: playlist import + search
+.signed-in-as {
+	color: rgba($white, 0.7);
+
+	a {
+		margin-left: 5px;
+	}
+}
+
+.playlist-import-row {
+	display: flex;
+	gap: 10px;
+
+	.form-control {
+		//Keep the input and the Import button on one row, input taking the rest
+		flex: 1;
+	}
+}
+
+.import-status {
+	margin-top: 8px;
+
+	&.error {
+		color: #f28b82;
+	}
+}
+
+.search-results {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	margin: 15px 0 40px 0;
+
+	.search-result {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		width: 230px;
+		padding: 10px 12px;
+		border: 1px solid rgba($white, 0.3);
+		border-radius: 4px;
+		cursor: pointer;
+
+		.search-result-image {
+			width: 48px;
+			height: 48px;
+			border-radius: 50%;
+			object-fit: cover;
+			flex-shrink: 0;
+		}
+
+		.search-result-name {
+			font-weight: bold;
+			//Long names (eg XXXTENTACION) must ellipsize, not overflow the tile:
+			//min-width: 0 lets the flex item shrink below its content width
+			flex: 1;
+			min-width: 0;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+
+		.search-result-action {
+			margin-left: auto;
+			flex-shrink: 0;
+			font-weight: bold;
+		}
+
+		&:hover:not(.added) {
+			border-color: $spotify-green;
+		}
+
+		&.added {
+			border-color: $spotify-green;
+			cursor: default;
+
+			.search-result-name,
+			.search-result-action {
+				color: $spotify-green;
+			}
+		}
+	}
+}
+
+@media (max-width: 767px) {
+	.search-results .search-result {
+		width: 100%;
+	}
+}
+
 // Sticky filter above the artist grid (replaces react-sticky with position: sticky)
 .sticky-artist-filter-container {
 	position: sticky;

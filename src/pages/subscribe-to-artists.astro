@@ -1,10 +1,10 @@
 ---
-import Layout from '../layouts/Layout.astro';
+import Layout from "../layouts/Layout.astro";
 ---
 
 <Layout>
 	<div class="page-container">
-		<h1>Select artists to subscribe to</h1>
+		<h1>Search for artists</h1>
 
 		<div id="subscribe-content">
 			<div class="loading-spinner"></div>
@@ -13,13 +13,31 @@ import Layout from '../layouts/Layout.astro';
 </Layout>
 
 <script>
-	// Vanilla JS port of FollowedArtistsList + FollowedArtistsListItem + SubscribeForm
-	import { getAccessToken, clearAccessToken } from '../lib/spotify-auth';
+	// Email-first flow. Step 1: the visitor enters their email and we send them
+	// a magic link. Step 2: clicking the link validates the 24h access token
+	// (and verifies their email - the link IS the verification), unlocking the
+	// picker. Step 3: find artists (public playlist import and/or search),
+	// select them, and subscribe. Every API call after the gate carries the
+	// token; if it expires mid-session the gate returns (selections are kept).
+	interface ArtistImage {
+		url: string;
+		width: number;
+		height: number;
+	}
 
-	interface SpotifyArtist {
+	interface SpotifyArtistSummary {
 		id: string;
 		name: string;
-		image: { url: string; width: number; height: number };
+		image: ArtistImage;
+	}
+
+	interface PlaylistImportResult {
+		playlistName: string | null;
+		tracksTotal: number | null;
+		artists: SpotifyArtistSummary[];
+	}
+
+	interface ArtistState extends SpotifyArtistSummary {
 		selected: boolean;
 	}
 
@@ -28,55 +46,229 @@ import Layout from '../layouts/Layout.astro';
 		requiresEmailVerification: boolean;
 	}
 
-	const content = document.getElementById('subscribe-content')!;
+	const SEARCH_DEBOUNCE_MS = 400;
+	const MIN_SEARCH_LENGTH = 2;
+	const TOKEN_STORAGE_KEY = "subscribeAccessToken";
 
-	function escapeHtml(value: string): string {
-		return value
-			.replaceAll('&', '&amp;')
-			.replaceAll('<', '&lt;')
-			.replaceAll('>', '&gt;')
-			.replaceAll('"', '&quot;')
-			.replaceAll("'", '&#039;');
-	}
+	const content = document.getElementById("subscribe-content")!;
 
-	function showError(message: string): void {
-		content.innerHTML = `<div class="error-message">${escapeHtml(message)}</div>`;
-	}
+	//Insertion-ordered by artist ID: playlist imports land first (most
+	//frequently featured first), search adds are appended. Kept across
+	//re-renders, so a token expiring mid-session doesn't lose selections
+	const artists = new Map<string, ArtistState>();
+
+	let accessToken: string | null = null;
+	let signedInEmail: string | null = null;
 
 	async function postJson<T>(url: string, body: unknown): Promise<T> {
 		const response = await fetch(url, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify(body),
 		});
-		const data = (await response.json().catch(() => null)) as (T & { error?: string }) | null;
+		const data = (await response.json().catch(() => null)) as
+			| (T & { error?: string })
+			| null;
 		if (!response.ok || !data) {
-			throw new Error(data?.error ?? `Request failed with status ${response.status}`);
+			//Attach the status so callers can distinguish an expired token (401)
+			throw Object.assign(
+				new Error(
+					data?.error ?? `Request failed with status ${response.status}`,
+				),
+				{ status: response.status },
+			);
 		}
 		return data;
 	}
 
-	let artists: SpotifyArtist[] = [];
-	let spotifyEmail: string | null = null;
-
-	function numSelected(): number {
-		return artists.filter((artist) => artist.selected).length;
+	function isTokenRejected(e: unknown): boolean {
+		return e instanceof Error && (e as Error & { status?: number }).status === 401;
 	}
 
-	function renderForm(): void {
-		const preselectedCount = artists.filter((artist) => artist.selected).length;
+	function clearToken(): void {
+		accessToken = null;
+		signedInEmail = null;
+		sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+	}
 
+	/** Any 401 means the token expired mid-session: back to the email gate (selections are kept) */
+	function handleExpiredToken(): void {
+		clearToken();
+		renderLocked(
+			"Your sign-in link has expired. Enter your email address to get a new one.",
+		);
+	}
+
+	function plural(
+		count: number,
+		singular: string,
+		pluralForm = `${singular}s`,
+	): string {
+		return `${count} ${count === 1 ? singular : pluralForm}`;
+	}
+
+	/** Status lines are plain text (playlist names etc. come from Spotify) */
+	function setStatus(
+		elementId: string,
+		message: string,
+		isError: boolean,
+	): void {
+		const element = document.getElementById(elementId);
+		if (!element) return;
+		element.textContent = message;
+		element.classList.toggle("error", isError);
+		element.hidden = !message;
+	}
+
+	function numSelected(): number {
+		let selected = 0;
+		for (const artist of artists.values()) {
+			if (artist.selected) selected++;
+		}
+		return selected;
+	}
+
+	// ---- Step 1: the email gate ----------------------------------------------
+
+	function renderLocked(message: string | null): void {
 		content.innerHTML = `
 			<p class="m-b-40">
-				You're following ${artists.length} artists on Spotify.
-				${preselectedCount > 0 ? `We've preselected ${preselectedCount} of your top artists (according to Spotify) for you. ` : ''}
-				Tap or click artists to select them.
+				First, enter your email address. We'll send you a sign-in link that verifies your email
+				and keeps you signed in for 24 hours – no password needed.
 			</p>
 
-			<button type="button" class="btn btn-primary m-b-20 m-r-10" id="select-all">Select All</button>
-			<button type="button" class="btn btn-primary m-b-20" id="select-none">Select None</button>
+			<div class="form-group">
+				<label class="control-label" for="email">Your email address</label>
+				<input type="email" id="email" class="form-control" placeholder="name@example.com"
+					spellcheck="false" autocomplete="off" />
+			</div>
+			<button type="button" class="btn btn-primary btn-lg" id="send-link">Email me a sign-in link</button>
+			<div id="link-status" class="import-status m-t-10" hidden></div>`;
 
-			<div class="sticky-artist-filter-container">
+		if (message) {
+			setStatus("link-status", message, true);
+		}
+
+		const input = document.getElementById("email")! as HTMLInputElement;
+		const button = document.getElementById("send-link")! as HTMLButtonElement;
+		button.addEventListener("click", () => void requestMagicLink());
+		input.addEventListener("keydown", (event) => {
+			if (event.key === "Enter") {
+				event.preventDefault();
+				void requestMagicLink();
+			}
+		});
+		input.focus();
+	}
+
+	async function requestMagicLink(): Promise<void> {
+		const input = document.getElementById("email")! as HTMLInputElement;
+		const button = document.getElementById("send-link")! as HTMLButtonElement;
+		const email = input.value.trim();
+
+		if (!email) {
+			setStatus("link-status", "Please enter your email address.", true);
+			return;
+		}
+
+		button.disabled = true;
+		setStatus("link-status", "Sending your sign-in link…", false);
+
+		try {
+			const data = await postJson<{ statusMessage: string }>(
+				"/api/auth/request-magic-link",
+				{
+					emailAddress: email,
+				},
+			);
+			renderCheckYourInbox(data.statusMessage);
+		} catch (e) {
+			setStatus(
+				"link-status",
+				e instanceof Error ? e.message : String(e),
+				true,
+			);
+			button.disabled = false;
+		}
+	}
+
+	function renderCheckYourInbox(statusMessage: string): void {
+		content.innerHTML = `
+			<p id="inbox-message" class="m-b-20"></p>
+			<p class="m-b-20">
+				Click the link in the email to continue – it also verifies your email address, so you won't
+				need to do anything else.
+			</p>
+			<button type="button" class="btn btn-primary" id="back-to-email">Use a different email address</button>`;
+
+		document.getElementById("inbox-message")!.textContent = statusMessage;
+		document
+			.getElementById("back-to-email")!
+			.addEventListener("click", () => renderLocked(null));
+	}
+
+	// ---- Step 2: the magic-link click ----------------------------------------
+
+	async function tryUnlock(token: string): Promise<void> {
+		try {
+			const data = await postJson<{ emailAddress: string }>(
+				"/api/auth/validate",
+				{ token },
+			);
+			accessToken = token;
+			signedInEmail = data.emailAddress;
+			sessionStorage.setItem(TOKEN_STORAGE_KEY, token);
+			renderUnlocked();
+		} catch {
+			sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+			renderLocked(
+				"Your sign-in link has expired or is invalid. Enter your email address to get a new one.",
+			);
+		}
+	}
+
+	// ---- Step 3: the picker --------------------------------------------------
+
+	function renderUnlocked(): void {
+		content.innerHTML = `
+			<p class="signed-in-as m-b-40" id="signed-in-as"></p>
+
+			<p>
+				Paste a link to a public Spotify playlist to import its artists, and/or search for artists by
+				name. (Private playlists and Spotify's own playlists like Today's Top Hits can't be imported.)
+			</p>
+			<p class="m-b-40">
+				To get a playlist link, right-click on it -> "Share" -> "Copy link to playlist". Then paste it below.
+			</p>
+
+			<div class="form-group">
+				<label class="control-label" for="playlist-input">Paste a public Spotify playlist link</label>
+				<div class="playlist-import-row">
+					<input type="text" id="playlist-input" class="form-control"
+						placeholder="https://open.spotify.com/playlist/…" spellcheck="false" autocomplete="off" />
+					<button type="button" class="btn btn-primary" id="import-playlist">Import</button>
+				</div>
+				<div id="playlist-status" class="import-status" hidden></div>
+			</div>
+
+			<div class="form-group">
+				<label class="control-label" for="artist-search">Or search for artists</label>
+				<input type="text" id="artist-search" class="form-control" placeholder="eg: Crowded House"
+					spellcheck="false" autocomplete="off" />
+				<div id="search-status" class="import-status" hidden></div>
+			</div>
+
+			<div id="search-results" class="search-results" hidden></div>
+
+			<h1>Subscribe to artists</h1>
+			<p id="selection-summary"></p>
+
+			<div id="selection-controls" hidden>
+				<button type="button" class="btn btn-primary m-b-20 m-r-10" id="select-all">Select All</button>
+				<button type="button" class="btn btn-primary m-b-20" id="select-none">Select None</button>
+			</div>
+
+			<div class="sticky-artist-filter-container" id="filter-container" hidden>
 				<div class="form-group m-b-10">
 					<label class="control-label" for="artist-name-filter">Filter by name</label>
 					<input type="text" id="artist-name-filter" class="form-control artist-filter-input"
@@ -96,45 +288,264 @@ import Layout from '../layouts/Layout.astro';
 				</div>
 			</div>`;
 
+		//"Signed in as name@example.com. Not you?" (text + link, so built via DOM)
+		const signedIn = document.getElementById("signed-in-as")!;
+		signedIn.textContent = `Signed in as ${signedInEmail}. `;
+		const notYou = document.createElement("a");
+		notYou.href = "#";
+		notYou.textContent = "Not you?";
+		notYou.addEventListener("click", (event) => {
+			event.preventDefault();
+			clearToken();
+			renderLocked(null);
+		});
+		signedIn.appendChild(notYou);
+
+		document
+			.getElementById("import-playlist")!
+			.addEventListener("click", () => void importPlaylist());
+
+		const searchInput = document.getElementById(
+			"artist-search",
+		)! as HTMLInputElement;
+		let searchTimer: ReturnType<typeof setTimeout> | undefined;
+		searchInput.addEventListener("input", () => {
+			clearTimeout(searchTimer);
+			const query = searchInput.value.trim();
+			if (query.length < MIN_SEARCH_LENGTH) {
+				setStatus("search-status", "", false);
+				renderSearchResults([]);
+				return;
+			}
+			searchTimer = setTimeout(() => void runSearch(query), SEARCH_DEBOUNCE_MS);
+		});
+
+		document
+			.getElementById("select-all")!
+			.addEventListener("click", () => setSelectedAllArtists(true));
+		document
+			.getElementById("select-none")!
+			.addEventListener("click", () => setSelectedAllArtists(false));
+
+		const filterInput = document.getElementById(
+			"artist-name-filter",
+		)! as HTMLInputElement;
+		filterInput.addEventListener("input", () =>
+			renderArtistList(filterInput.value),
+		);
+
 		renderArtistList();
 		renderSubscribeForm();
-
-		document.getElementById('select-all')!.addEventListener('click', () => setSelectedAllArtists(true));
-		document.getElementById('select-none')!.addEventListener('click', () => setSelectedAllArtists(false));
-
-		const filterInput = document.getElementById('artist-name-filter')! as HTMLInputElement;
-		filterInput.addEventListener('input', () => renderArtistList(filterInput.value));
+		updateSelectionUi();
 	}
 
-	function renderArtistList(filter: string = ''): void {
-		const list = document.getElementById('artists-list')!;
-		list.textContent = '';
+	async function importPlaylist(): Promise<void> {
+		const input = document.getElementById(
+			"playlist-input",
+		)! as HTMLInputElement;
+		const button = document.getElementById(
+			"import-playlist",
+		)! as HTMLButtonElement;
+		const link = input.value.trim();
+
+		if (!link) {
+			setStatus("playlist-status", "Paste a playlist link first.", true);
+			return;
+		}
+
+		button.disabled = true;
+		setStatus(
+			"playlist-status",
+			"Importing artists from that playlist…",
+			false,
+		);
+
+		try {
+			const data = await postJson<PlaylistImportResult>(
+				"/api/spotify/playlist-artists",
+				{
+					token: accessToken,
+					playlist: link,
+				},
+			);
+
+			let added = 0;
+			let already = 0;
+			for (const artist of data.artists) {
+				if (artists.has(artist.id)) {
+					already++;
+					continue;
+				}
+				artists.set(artist.id, { ...artist, selected: true });
+				added++;
+			}
+
+			if (added + already === 0) {
+				setStatus(
+					"playlist-status",
+					"We couldn't find any artists in that playlist.",
+					true,
+				);
+			} else {
+				const fromName = data.playlistName
+					? ` from “${data.playlistName}”`
+					: "";
+				const alreadyNote =
+					already > 0
+						? ` (${plural(already, "was", "were")} already in your list)`
+						: "";
+				setStatus(
+					"playlist-status",
+					`Imported ${plural(added, "artist")}${fromName}${alreadyNote}.`,
+					false,
+				);
+				input.value = "";
+			}
+
+			renderArtistList();
+			updateSelectionUi();
+			updateSubscribeForm();
+		} catch (e) {
+			if (isTokenRejected(e)) {
+				handleExpiredToken();
+				return;
+			}
+			setStatus(
+				"playlist-status",
+				e instanceof Error ? e.message : String(e),
+				true,
+			);
+		} finally {
+			button.disabled = false;
+		}
+	}
+
+	let searchSequence = 0;
+	let lastSearchResults: SpotifyArtistSummary[] = [];
+
+	async function runSearch(query: string): Promise<void> {
+		//Ignore responses that a newer keystroke has superseded
+		const sequence = ++searchSequence;
+		setStatus("search-status", `Searching for “${query}”…`, false);
+
+		try {
+			const data = await postJson<{ artists: SpotifyArtistSummary[] }>(
+				"/api/spotify/search-artists",
+				{
+					token: accessToken,
+					query,
+				},
+			);
+			if (sequence !== searchSequence) return;
+
+			renderSearchResults(data.artists);
+			setStatus(
+				"search-status",
+				data.artists.length === 0
+					? "No artists found – try a different search."
+					: "",
+				false,
+			);
+		} catch (e) {
+			if (sequence !== searchSequence) return;
+			if (isTokenRejected(e)) {
+				handleExpiredToken();
+				return;
+			}
+			renderSearchResults([]);
+			setStatus(
+				"search-status",
+				e instanceof Error ? e.message : String(e),
+				true,
+			);
+		}
+	}
+
+	function renderSearchResults(results: SpotifyArtistSummary[]): void {
+		lastSearchResults = results;
+
+		const container = document.getElementById("search-results")!;
+		container.textContent = "";
+		container.hidden = results.length === 0;
+
+		for (const result of results) {
+			const added = artists.has(result.id);
+
+			const tile = document.createElement("div");
+			tile.className = `search-result${added ? " added" : ""}`;
+			tile.addEventListener("click", () => addArtist(result));
+
+			const image = document.createElement("img");
+			image.className = "search-result-image";
+			image.src = result.image.url;
+			image.alt = result.name;
+			image.loading = "lazy";
+
+			const name = document.createElement("div");
+			name.className = "search-result-name";
+			name.textContent = result.name;
+			//Long names ellipsize in the tile: keep the full name on hover
+			name.title = result.name;
+
+			const action = document.createElement("div");
+			action.className = "search-result-action";
+			//Just the check icon when added: the word overflows narrow tiles
+			action.textContent = added ? "✓" : "Add";
+			action.title = added ? "Added" : "";
+
+			tile.appendChild(image);
+			tile.appendChild(name);
+			tile.appendChild(action);
+			container.appendChild(tile);
+		}
+	}
+
+	function addArtist(artist: SpotifyArtistSummary): void {
+		if (artists.has(artist.id)) return;
+
+		artists.set(artist.id, { ...artist, selected: true });
+
+		renderArtistList();
+		updateSelectionUi();
+		updateSubscribeForm();
+		renderSearchResults(lastSearchResults);
+	}
+
+	function renderArtistList(filter: string = ""): void {
+		const list = document.getElementById("artists-list")!;
+		list.textContent = "";
+
+		//When empty, render nothing here: the selection summary already shows
+		//the "No artists yet" hint, and repeating it just looks broken
+		if (artists.size === 0) return;
 
 		const filterLower = filter.trim().toLowerCase();
 
-		for (const artist of artists) {
-			if (filterLower && !artist.name.toLowerCase().includes(filterLower)) continue;
+		for (const artist of artists.values()) {
+			if (filterLower && !artist.name.toLowerCase().includes(filterLower))
+				continue;
 
-			const container = document.createElement('div');
-			container.className = `artist-container${artist.selected ? ' selected' : ''}`;
-			container.addEventListener('click', () => {
+			const container = document.createElement("div");
+			container.className = `artist-container${artist.selected ? " selected" : ""}`;
+			container.addEventListener("click", () => {
 				artist.selected = !artist.selected;
-				container.className = `artist-container${artist.selected ? ' selected' : ''}`;
+				container.className = `artist-container${artist.selected ? " selected" : ""}`;
+				updateSelectionUi();
 				updateSubscribeForm();
 			});
 
-			const square = document.createElement('div');
-			square.className = 'square';
+			const square = document.createElement("div");
+			square.className = "square";
 
-			const image = document.createElement('img');
-			image.className = 'artist-image';
+			const image = document.createElement("img");
+			image.className = "artist-image";
 			image.src = artist.image.url;
 			image.alt = artist.name;
-			image.loading = 'lazy';
+			image.loading = "lazy";
 			square.appendChild(image);
 
-			const name = document.createElement('div');
-			name.className = 'artist-name';
+			const name = document.createElement("div");
+			name.className = "artist-name";
 			name.textContent = artist.name;
 
 			container.appendChild(square);
@@ -145,48 +556,51 @@ import Layout from '../layouts/Layout.astro';
 
 	function setSelectedAllArtists(selected: boolean): void {
 		if (selected) {
-			const filterInput = document.getElementById('artist-name-filter') as HTMLInputElement | null;
+			const filterInput = document.getElementById(
+				"artist-name-filter",
+			) as HTMLInputElement | null;
 			if (filterInput) {
-				filterInput.value = '';
+				filterInput.value = "";
 			}
 		}
-		for (const artist of artists) {
+		for (const artist of artists.values()) {
 			artist.selected = selected;
 		}
 		renderArtistList();
+		updateSelectionUi();
 		updateSubscribeForm();
 	}
 
+	function updateSelectionUi(): void {
+		const summary = document.getElementById("selection-summary");
+		const controls = document.getElementById("selection-controls");
+		const filterContainer = document.getElementById("filter-container");
+		const hasArtists = artists.size > 0;
+
+		if (summary) {
+			summary.textContent = hasArtists
+				? `${plural(artists.size, "artist")} in your list, ${numSelected()} selected. Tap or click artists to toggle selection.`
+				: "No artists yet – import a playlist or search above to get started.";
+		}
+		if (controls) {
+			controls.hidden = !hasArtists;
+		}
+		if (filterContainer) {
+			filterContainer.hidden = !hasArtists;
+		}
+	}
+
 	function renderSubscribeForm(): void {
-		const holder = document.getElementById('subscribe-form-holder')!;
+		const holder = document.getElementById("subscribe-form-holder")!;
+		//No email input: the server resolves the (already verified) subscriber
+		//from the magic-link token
 		holder.innerHTML = `
 			<form id="subscribe-form">
-				<div class="form-group">
-					<label class="control-label" for="email">Your email</label>
-					<input type="email" id="email" class="form-control" placeholder="name@example.com"
-						spellcheck="false" required />
-					<div class="m-t-5 email-warning" id="email-warning" hidden>
-						Using a different email to your Spotify account requires an extra verification step.
-					</div>
-				</div>
 				<button type="submit" class="btn btn-primary btn-lg" id="subscribe-button">Subscribe</button>
 			</form>`;
 
-		const emailInput = document.getElementById('email')! as HTMLInputElement;
-		const emailWarning = document.getElementById('email-warning')!;
-		const form = document.getElementById('subscribe-form')!;
-
-		emailInput.addEventListener('input', () => {
-			emailWarning.hidden = !(spotifyEmail !== null && emailInput.value !== spotifyEmail);
-		});
-
-		if (spotifyEmail) {
-			emailInput.value = spotifyEmail;
-		} else {
-			emailWarning.hidden = false;
-		}
-
-		form.addEventListener('submit', (event) => {
+		const form = document.getElementById("subscribe-form")!;
+		form.addEventListener("submit", (event) => {
 			event.preventDefault();
 			void handleSubmit();
 		});
@@ -195,12 +609,14 @@ import Layout from '../layouts/Layout.astro';
 	}
 
 	function updateSubscribeForm(): void {
-		const heading = document.getElementById('subscribing-heading');
-		const button = document.getElementById('subscribe-button') as HTMLButtonElement | null;
+		const heading = document.getElementById("subscribing-heading");
+		const button = document.getElementById(
+			"subscribe-button",
+		) as HTMLButtonElement | null;
 		const selected = numSelected();
 
 		if (heading) {
-			heading.textContent = `Subscribing to ${selected} artist${selected === 1 ? '' : 's'}`;
+			heading.textContent = `Subscribing to ${selected} artist${selected === 1 ? "" : "s"}`;
 		}
 		if (button) {
 			button.disabled = selected === 0;
@@ -208,76 +624,66 @@ import Layout from '../layouts/Layout.astro';
 	}
 
 	async function handleSubmit(): Promise<void> {
-		const emailInput = document.getElementById('email')! as HTMLInputElement;
-		const holder = document.getElementById('subscribe-form-holder')!;
+		const holder = document.getElementById("subscribe-form-holder")!;
 
 		holder.innerHTML = '<div class="loading-spinner"></div>';
 
 		try {
-			const result = await postJson<SubscribeResult>('/api/subscriptions/subscribe', {
-				emailAddress: emailInput.value,
-				artists: artists
-					.filter((artist) => artist.selected)
-					.map((artist) => ({ spotifyId: artist.id, name: artist.name })),
-				spotifyAccessToken: getAccessToken(),
-			});
+			const result = await postJson<SubscribeResult>(
+				"/api/subscriptions/subscribe",
+				{
+					token: accessToken,
+					artists: [...artists.values()]
+						.filter((artist) => artist.selected)
+						.map((artist) => ({ spotifyId: artist.id, name: artist.name })),
+				},
+			);
 
-			sessionStorage.setItem('subscribeResult', JSON.stringify(result));
-			clearAccessToken();
-			window.location.replace('/subscribe-success');
+			sessionStorage.setItem("subscribeResult", JSON.stringify(result));
+			window.location.replace("/subscribe-success");
 		} catch (e) {
-			holder.innerHTML = '';
-			const error = document.createElement('div');
-			error.className = 'error-message';
+			if (isTokenRejected(e)) {
+				handleExpiredToken();
+				return;
+			}
+			holder.innerHTML = "";
+			const error = document.createElement("div");
+			error.className = "error-message";
 			error.textContent = e instanceof Error ? e.message : String(e);
 			holder.appendChild(error);
 
-			const button = document.createElement('button');
-			button.type = 'button';
-			button.className = 'btn btn-primary btn-lg m-t-20';
-			button.textContent = 'Try again';
-			button.addEventListener('click', () => {
+			const button = document.createElement("button");
+			button.type = "button";
+			button.className = "btn btn-primary btn-lg m-t-20";
+			button.textContent = "Try again";
+			button.addEventListener("click", () => {
 				renderSubscribeForm();
 			});
 			holder.appendChild(button);
 		}
 	}
 
-	async function init(): Promise<void> {
-		const accessToken = getAccessToken();
+	// ---- Entry point ---------------------------------------------------------
 
-		if (!accessToken) {
-			showError('No Spotify access token set. Please go back and try again.');
+	async function init(): Promise<void> {
+		//A token in the URL is the magic-link click: consume it, then strip it
+		//from the address bar (it's a credential)
+		const urlToken = new URLSearchParams(window.location.search).get(
+			"token",
+		);
+		if (urlToken) {
+			window.history.replaceState({}, "", window.location.pathname);
+			await tryUnlock(urlToken);
 			return;
 		}
 
-		//Auto-fill their Spotify account email in parallel with the artist list.
-		//This is not essential, like the old app: errors just mean no prefill.
-		const emailPromise = postJson<{ email: string }>('/api/spotify/user-email', {
-			accessToken,
-		})
-			.then((data) => {
-				spotifyEmail = data.email;
-				const emailInput = document.getElementById('email') as HTMLInputElement | null;
-				if (emailInput && !emailInput.value) {
-					emailInput.value = data.email;
-				}
-			})
-			.catch(() => {
-				spotifyEmail = null;
-			});
-
-		try {
-			const data = await postJson<{ artists: SpotifyArtist[] }>('/api/spotify/followed-artists', {
-				accessToken,
-			});
-			artists = data.artists;
-			renderForm();
-			await emailPromise;
-			updateSubscribeForm();
-		} catch (e) {
-			showError(e instanceof Error ? e.message : String(e));
+		const storedToken = sessionStorage.getItem(TOKEN_STORAGE_KEY);
+		if (storedToken) {
+			await tryUnlock(storedToken);
+			return;
 		}
+
+		renderLocked(null);
 	}
 
 	void init();

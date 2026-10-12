@@ -10,8 +10,8 @@ import Layout from '../layouts/Layout.astro';
 			<h2>Who is this for?</h2>
 
 			<p>
-				You need a Spotify account, premium or free, which follows at least one artist. You may know that
-				Spotify already sends weekly new release emails, however:
+				Anyone with an email address — no Spotify account or login needed. You may know that Spotify
+				already sends weekly new release emails, however:
 			</p>
 
 			<ul>
@@ -21,40 +21,55 @@ import Layout from '../layouts/Layout.astro';
 				</li>
 				<li>Spotify's emails are biased towards featured/promoted artists, and miss some artists.</li>
 				<li>
-					You may not care about new releases from all your followed artists, especially if you share an
-					account with someone. This app lets you choose which artists to be notified about.
+					You may not care about new releases from every artist you listen to. This app lets you choose
+					exactly which artists to be notified about.
 				</li>
 			</ul>
 
 			<h2>How does it work?</h2>
 
-			<p>It only takes a minute and you don't even need to register an account.</p>
+			<p>It only takes a minute — no account, no password, just your email address.</p>
 		</div>
 
 		<div class="how-does-it-work-container">
 			<div class="how-does-it-work-step">
 				<div class="image-container">
-					<img src="/images/how-does-it-work-step-1.jpg" alt="Allow Spotify access" width="220" height="220" />
+					<img
+						src="/images/how-does-it-work-step-1.jpg"
+						alt="Enter your email address"
+						width="220"
+						height="220"
+					/>
 					<div class="center-hole"></div>
 				</div>
 
-				<h4>1.<br />Allow this app limited access to your Spotify data</h4>
+				<h4>1.<br />Enter your email address and we'll send you a sign-in link</h4>
 			</div>
 			<div class="how-does-it-work-step">
 				<div class="image-container">
-					<img src="/images/how-does-it-work-step-2.jpg" alt="Choose artists" width="220" height="220" />
+					<img
+						src="/images/how-does-it-work-step-2.jpg"
+						alt="Find artists via a playlist link or search"
+						width="220"
+						height="220"
+					/>
 					<div class="center-hole"></div>
 				</div>
 
-				<h4>2.<br />Select which artists to subscribe to</h4>
+				<h4>2.<br />Click the link in the email, then paste a public Spotify playlist link and/or search for artists</h4>
 			</div>
 			<div class="how-does-it-work-step">
 				<div class="image-container">
-					<img src="/images/how-does-it-work-step-3.jpg" alt="Enter email address" width="220" height="220" />
+					<img
+						src="/images/how-does-it-work-step-3.jpg"
+						alt="Choose artists and subscribe"
+						width="220"
+						height="220"
+					/>
 					<div class="center-hole"></div>
 				</div>
 
-				<h4>3.<br />Enter your email address and click Subscribe</h4>
+				<h4>3.<br />Select which artists to subscribe to and click Subscribe</h4>
 			</div>
 		</div>
 
@@ -68,25 +83,15 @@ import Layout from '../layouts/Layout.astro';
 			<h2>Ready?</h2>
 
 			<p>
-				Click the button below to let us access (some of) your Spotify data. The only data we access is your
-				followed artists (to let you choose which to subscribe to), your top artists (to pre-select your top
-				50 artists), and your email (for anti-spam verification). We will never sell or do anything unethical
-				with your data. You can even see our source code on <a
-					href="https://github.com/Ellfish/newalbums-web">Github</a
-				>.
+				Click the button below to get started. There's no password and no Spotify account — just your
+				email address, which we verify by sending you a link that keeps you signed in for 24 hours. We
+				only use your playlist link or search term to find artists, and we only store your email address
+				and the artists you select. We will never sell or do anything unethical with your data. You can
+				even see our source code on
+				<a href="https://github.com/Ellfish/newalbums-web">Github</a>.
 			</p>
 
-			<a id="get-started" class="btn btn-primary btn-lg m-t-50" href="#">Get Started</a>
+			<a id="get-started" class="btn btn-primary btn-lg m-t-50" href="/subscribe-to-artists">Get Started</a>
 		</div>
 	</div>
 </Layout>
-
-<script>
-	// Builds the Spotify Authorization Code + PKCE URL client-side so the
-	// redirect_uri is always the current origin (same scopes as the old app).
-	import { getSpotifyAuthoriseUrl } from '../lib/spotify-auth';
-
-	const spotifyAuthoriseUrl = await getSpotifyAuthoriseUrl();
-
-	document.getElementById('get-started')?.setAttribute('href', spotifyAuthoriseUrl);
-</script>

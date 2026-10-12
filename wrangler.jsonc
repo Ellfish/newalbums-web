@@ -23,7 +23,10 @@
 		"ADMIN_EMAIL_ADDRESS": "ellfish@gmail.com",
 		"ADMIN_FULL_NAME": "Elliot Fisher",
 		"MAILGUN_API_URL": "https://api.mailgun.net/v3/",
-		"MAILGUN_DOMAIN": "newalbumsviaemail.com"
+		"MAILGUN_DOMAIN": "newalbumsviaemail.com",
+		// Search market fallback: the visitor's own country (from Cloudflare's
+		// request.cf IP geolocation) takes precedence over this
+		"SPOTIFY_MARKET": "AU"
 	},
 	// Keep the workers.dev URL enabled as a fallback for the NAS job's API
 	// base URL (the public custom domain is the primary)
@@ -59,7 +62,8 @@
 				"ADMIN_EMAIL_ADDRESS": "ellfish@gmail.com",
 				"ADMIN_FULL_NAME": "Elliot Fisher",
 				"MAILGUN_API_URL": "https://api.mailgun.net/v3/",
-				"MAILGUN_DOMAIN": "newalbumsviaemail.com"
+				"MAILGUN_DOMAIN": "newalbumsviaemail.com",
+				"SPOTIFY_MARKET": "AU"
 			}
 		}
 	},
