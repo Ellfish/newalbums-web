@@ -1,8 +1,13 @@
 ---
-import Layout from '../layouts/Layout.astro';
+import Layout from "../layouts/Layout.astro";
 ---
 
 <Layout>
+	<a
+		slot="header-cta"
+		class="btn btn-light btn-lg m-t-40"
+		href="/subscribe-to-artists">Subscribe now</a
+	>
 	<div class="page-container">
 		<div class="home-content">
 			<h1>Subscribe to new album releases on&nbsp;Spotify</h1>
@@ -10,25 +15,32 @@ import Layout from '../layouts/Layout.astro';
 			<h2>Who is this for?</h2>
 
 			<p>
-				Anyone with an email address — no Spotify account or login needed. You may know that Spotify
-				already sends weekly new release emails, however:
+				Anyone with an email address - no Spotify account or login needed. You
+				may know that Spotify already sends weekly new release emails, however:
 			</p>
 
 			<ul>
 				<li>
-					We only email you about albums, which (we think) are more important to know about than single
-					releases, and therefore worthy of a spot in your crowded inbox.
+					We only email you about albums, which (we think) are more important to
+					know about than single releases, and therefore worthy of a spot in
+					your crowded inbox.
 				</li>
-				<li>Spotify's emails are biased towards featured/promoted artists, and miss some artists.</li>
 				<li>
-					You may not care about new releases from every artist you listen to. This app lets you choose
-					exactly which artists to be notified about.
+					Spotify's emails are biased towards featured/promoted artists, and
+					miss a lot of artists.
+				</li>
+				<li>
+					You may not care about new releases from every artist you listen to.
+					This app lets you choose exactly which artists to be notified about.
 				</li>
 			</ul>
 
 			<h2>How does it work?</h2>
 
-			<p>It only takes a minute — no account, no password, just your email address.</p>
+			<p>
+				It only takes a minute – no account, no password, just your email
+				address.
+			</p>
 		</div>
 
 		<div class="how-does-it-work-container">
@@ -43,7 +55,9 @@ import Layout from '../layouts/Layout.astro';
 					<div class="center-hole"></div>
 				</div>
 
-				<h4>1.<br />Enter your email address and we'll send you a sign-in link</h4>
+				<h4>
+					1.<br />Enter your email address and we'll send you a sign-in link
+				</h4>
 			</div>
 			<div class="how-does-it-work-step">
 				<div class="image-container">
@@ -56,7 +70,10 @@ import Layout from '../layouts/Layout.astro';
 					<div class="center-hole"></div>
 				</div>
 
-				<h4>2.<br />Click the link in the email, then paste a public Spotify playlist link and/or search for artists</h4>
+				<h4>
+					2.<br />Click the link in the email, then paste a public Spotify
+					playlist link and/or search for artists
+				</h4>
 			</div>
 			<div class="how-does-it-work-step">
 				<div class="image-container">
@@ -69,29 +86,36 @@ import Layout from '../layouts/Layout.astro';
 					<div class="center-hole"></div>
 				</div>
 
-				<h4>3.<br />Select which artists to subscribe to and click Subscribe</h4>
+				<h4>
+					3.<br />Select which artists to subscribe to and click Subscribe
+				</h4>
 			</div>
 		</div>
 
 		<div class="home-content">
 			<p>
-				Our app checks for new album releases daily. If it finds one from an artist that you've subscribed
-				to, we'll send you an email notification. It's easy to unsubscribe at any time by clicking the link
-				in the email.
+				Our app checks for new album releases daily. If it finds one from an
+				artist that you've subscribed to, we'll send you an email notification.
+				It's easy to unsubscribe at any time by clicking the link in the email.
 			</p>
 
 			<h2>Ready?</h2>
 
 			<p>
-				Click the button below to get started. There's no password and no Spotify account — just your
-				email address, which we verify by sending you a link that keeps you signed in for 24 hours. We
-				only use your playlist link or search term to find artists, and we only store your email address
-				and the artists you select. We will never sell or do anything unethical with your data. You can
-				even see our source code on
-				<a href="https://github.com/Ellfish/newalbums-web">Github</a>.
+				Click the button below to get started. There's no password and no
+				Spotify account – just your email address, which we verify by sending
+				you a link that keeps you signed in for 24 hours. We only use your
+				playlist link or search term to find artists, and we only store your
+				email address and the artists you select. We will never sell or do
+				anything unethical with your data. You can even see our source code on
+				&nbsp;<a href="https://github.com/Ellfish/newalbums-web">Github</a>.
 			</p>
 
-			<a id="get-started" class="btn btn-primary btn-lg m-t-50" href="/subscribe-to-artists">Get Started</a>
+			<a
+				id="get-started"
+				class="btn btn-primary btn-lg m-t-50"
+				href="/subscribe-to-artists">Get Started</a
+			>
 		</div>
 	</div>
 </Layout>

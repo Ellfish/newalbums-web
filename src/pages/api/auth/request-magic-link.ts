@@ -4,7 +4,6 @@ import { readJsonBody, jsonResponse, errorResponse, isSameOrigin } from '../../.
 import { normaliseEmailAddress, getOrCreateSubscriber } from '../../../lib/repo/subscribers';
 import { createAccessToken, ACCESS_TOKEN_TTL_HOURS } from '../../../lib/repo/access-tokens';
 import { sendMagicLinkEmail, sendNewSubscriberNotification } from '../../../lib/emails/notifications';
-import { getAppConfig } from '../../../lib/config';
 import { TtlCache } from '../../../lib/cache';
 
 export const prerender = false;
@@ -45,9 +44,15 @@ export const POST: APIRoute = async ({ request }) => {
 		const { subscriber, createdNewSubscriber } = await getOrCreateSubscriber(env.DB, emailAddress, false);
 		const accessToken = await createAccessToken(env.DB, subscriber.Id);
 
+		//The link returns to the host the visitor actually used: in local dev
+		//that's http://localhost:4321 (FRONTEND_ROOT_URL would point the link
+		//at production, where this token doesn't exist), and in production
+		//it's the site itself
+		const magicLinkUrl = `${new URL(request.url).origin}/subscribe-to-artists?token=${accessToken.Token}`;
+
 		const error = await sendMagicLinkEmail({
 			emailAddress: subscriber.EmailAddress,
-			magicLinkUrl: `${getAppConfig().frontendRootUrl}/subscribe-to-artists?token=${accessToken.Token}`,
+			magicLinkUrl,
 		});
 		if (error) {
 			console.error('Error sending magic link email:', error);

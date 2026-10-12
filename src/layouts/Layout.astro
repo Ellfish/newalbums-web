@@ -50,6 +50,10 @@ const {
 			<div class="app-subheading">
 				Receive email notifications when the artists you choose release new albums on Spotify
 			</div>
+
+			<!-- Optional header CTA, supplied via a named slot by pages that want
+			one (currently only the home page's "Subscribe now" button) -->
+			<slot name="header-cta" />
 		</header>
 
 		<div class="container">

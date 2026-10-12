@@ -30,6 +30,15 @@
 	}
 }
 
+//The find-artists inputs don't need the full container width: cap them at
+//about half of it on desktop widths (full width on mobile, where the
+//container is already narrow)
+.narrow-input {
+	@media (min-width: 768px) {
+		max-width: 50%;
+	}
+}
+
 .playlist-import-row {
 	display: flex;
 	gap: 10px;
@@ -58,7 +67,7 @@
 		display: flex;
 		align-items: center;
 		gap: 10px;
-		width: 230px;
+		width: 360px;
 		padding: 10px 12px;
 		border: 1px solid rgba($white, 0.3);
 		border-radius: 4px;
@@ -108,19 +117,6 @@
 @media (max-width: 767px) {
 	.search-results .search-result {
 		width: 100%;
-	}
-}
-
-// Sticky filter above the artist grid (replaces react-sticky with position: sticky)
-.sticky-artist-filter-container {
-	position: sticky;
-	top: 0;
-	z-index: 10;
-	padding: 5px 15px;
-	background-color: $colour-primary;
-
-	.artist-filter-input {
-		height: 42px;
 	}
 }
 
@@ -232,7 +228,7 @@
 
 // Subscribe form, ported from SubscribeForm.scss
 .subscribe-form-container {
-	margin-top: 100px;
+	margin-top: 60px;
 	//Prevents the footer jumping around when we display the loading spinner and success/error messages
 	min-height: 300px;
 

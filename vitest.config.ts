@@ -19,8 +19,13 @@ export default defineConfig({
 					// is mocked anyway
 					SPOTIFY_CLIENT_ID: 'test-client-id',
 					SPOTIFY_CLIENT_SECRET: 'test-client-secret',
-					// Deliberately NO MAILGUN_API_KEY: sendEmail() must return its
-					// not-configured error in tests, and never send anything
+					// Deliberately empty: tests must NEVER send real email or
+					// redirect, no matter what the developer's .dev.vars
+					// contains (these overrides take precedence over it, like
+					// the Spotify ones above). The local-dev redirect logic
+					// itself is tested purely via redirectForLocalDev.
+					MAILGUN_API_KEY: '',
+					LOCAL_DEV_EMAIL_ADDRESS: '',
 				},
 			},
 		}),

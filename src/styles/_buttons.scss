@@ -50,3 +50,35 @@
 	line-height: 1.33;
 	border-radius: 6px;
 }
+
+// Inverse of btn-primary (like react-bootstrap's btn-light, which the old app
+// had but was never ported): for CTAs that sit on the purple header
+// background, where btn-primary would disappear. White background,
+// primary-purple text (WCAG AA: ~6.5:1).
+.btn-light {
+	color: $colour-primary;
+	background-color: $white;
+	border-color: $white;
+
+	&:hover,
+	&:focus,
+	&:active {
+		color: $colour-primary-light;
+		//Slightly translucent white: reads as a soft press over the purple header
+		background-color: rgba($white, 0.92);
+		border-color: rgba($white, 0.92);
+	}
+
+	&:disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
+
+		&:hover,
+		&:focus,
+		&:active {
+			color: $colour-primary;
+			background-color: $white;
+			border-color: $white;
+		}
+	}
+}

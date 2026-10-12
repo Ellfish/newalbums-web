@@ -54,7 +54,7 @@ Public endpoints (same-origin, POST JSON, called by the pages):
 
 | Endpoint | Purpose |
 |---|---|
-| `POST /api/auth/request-magic-link` | Step 1: get-or-create the subscriber, then email a 24h magic link |
+| `POST /api/auth/request-magic-link` | Step 1: get-or-create the subscriber, then email a 24h magic link (the link points back to the requesting host, so local dev links go to localhost) |
 | `POST /api/auth/validate` | Step 2 (the link click): validate the token + mark the email verified |
 | `POST /api/spotify/playlist-artists` | Unique artists of a public playlist (magic-link token required; app token, same-origin only, cached per isolate) |
 | `POST /api/spotify/search-artists` | Artist search (magic-link token required; app token, market from the visitor's country, same-origin only, cached per isolate) |
@@ -87,12 +87,14 @@ npm test        # Vitest, run inside workerd via @cloudflare/vitest-plugin
 npm run check   # TypeScript checks
 ```
 
-Local secrets live in `.dev.vars` (gitignored). For local dev you need `ADMIN_TOKEN` plus the Spotify app credentials; deliberately **omitting** `MAILGUN_API_KEY` means local runs never send real email — attempts just return a "not configured" error:
+Local secrets live in `.dev.vars` (gitignored). For local dev you need `ADMIN_TOKEN` plus the Spotify app credentials. `LOCAL_DEV_EMAIL_ADDRESS` is a safety net enforced in `sendEmail` — the bottom of the email call hierarchy, so no caller can bypass it: when set, **every** email sent from local dev is redirected to that address, with the original recipients recorded in the subject. That means you can fill in `MAILGUN_API_KEY` and exercise the real email flows (magic links, admin notifications) without ever emailing a real recipient. With no `MAILGUN_API_KEY`, sends just return a "not configured" error:
 
 ```
 ADMIN_TOKEN=<32 random bytes, hex>
 SPOTIFY_CLIENT_ID=<from the Spotify dev dashboard>
 SPOTIFY_CLIENT_SECRET=<from the Spotify dev dashboard>
+LOCAL_DEV_EMAIL_ADDRESS=<your inbox: receives every local-dev email>
+MAILGUN_API_KEY=<from Mailgun, to send real (redirected) email locally>
 ```
 
 ## Deployment

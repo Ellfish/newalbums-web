@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { isAdminAuthorized } from '../src/lib/admin-auth';
 import { getAppConfig } from '../src/lib/config';
-import { sendEmail } from '../src/lib/mailgun';
+import { sendEmail, redirectForLocalDev } from '../src/lib/mailgun';
+import type { EmailMessage } from '../src/lib/mailgun';
 import { renderAlertEmail } from '../src/lib/emails/template';
 
 describe('admin auth', () => {
@@ -29,6 +30,37 @@ describe('mailgun', () => {
 		});
 
 		expect(error).toBe('Mailgun not configured, cannot send email.');
+	});
+});
+
+describe('mailgun local-dev redirect (the sendEmail safety net)', () => {
+	it('returns the message unchanged when no LOCAL_DEV_EMAIL_ADDRESS is set', () => {
+		const email: EmailMessage = { subject: 'Hello', to: [{ address: 'fan@example.com' }] };
+
+		expect(redirectForLocalDev(email, undefined)).toBe(email);
+		expect(redirectForLocalDev(email, null)).toBe(email);
+		expect(redirectForLocalDev(email, '')).toBe(email);
+	});
+
+	it('redirects to the local address and records the original recipients in the subject', () => {
+		const email: EmailMessage = {
+			subject: 'Your sign-in link',
+			text: 'body',
+			to: [
+				{ address: 'fan@example.com', displayName: 'Fan' },
+				{ address: 'other@example.com' },
+			],
+		};
+
+		const redirected = redirectForLocalDev(email, 'dev@example.com');
+
+		//The single redirect target replaces every recipient
+		expect(redirected.to).toEqual([{ address: 'dev@example.com' }]);
+		expect(redirected.subject).toBe(
+			'Your sign-in link [local dev - originally for: fan@example.com, other@example.com]',
+		);
+		//Body content is untouched
+		expect(redirected.text).toBe('body');
 	});
 });
 

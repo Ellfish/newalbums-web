@@ -20,10 +20,36 @@ function formatAddress(a: EmailAddress): string {
 }
 
 /**
+ * Local-dev safety net, enforced at the very bottom of the email call
+ * hierarchy (inside sendEmail, so no caller can bypass it): when
+ * LOCAL_DEV_EMAIL_ADDRESS is set (.dev.vars only - it is never set on a
+ * deployed Worker), every email is redirected to that address instead of its
+ * real recipients, with the original recipients recorded in the subject so
+ * the intended destination is still visible while testing.
+ */
+export function redirectForLocalDev(
+	email: EmailMessage,
+	localDevAddress: string | null | undefined,
+): EmailMessage {
+	if (!localDevAddress) return email;
+
+	const originalRecipients = email.to.map((to) => to.address).join(', ');
+	return {
+		...email,
+		to: [{ address: localDevAddress }],
+		subject: `${email.subject} [local dev - originally for: ${originalRecipients}]`,
+	};
+}
+
+/**
  * Port of EmailManager.SendMailgunEmail: retries sending up to 3 times if an
  * error is encountered. Returns null if successful, otherwise the error text.
+ * All sends pass through redirectForLocalDev first (see above).
  */
 export async function sendEmail(email: EmailMessage): Promise<string | null> {
+	//Enforced here so no caller can email a real recipient from local dev
+	email = redirectForLocalDev(email, env.LOCAL_DEV_EMAIL_ADDRESS);
+
 	const apiKey = env.MAILGUN_API_KEY;
 	const apiUrl = env.MAILGUN_API_URL;
 	const domain = env.MAILGUN_DOMAIN;
