@@ -1,11 +1,13 @@
 import {
 	MIN_SEARCH_LENGTH,
 	SEARCH_DEBOUNCE_MS,
+	STEP_2_HEADING,
 	getContentElement,
 	isTokenRejected,
 	plural,
 	postJson,
 	setStatus,
+	setStepHeading,
 	type ArtistState,
 	type PlaylistImportResult,
 	type SearchResponse,
@@ -41,17 +43,25 @@ let lastSearchResults: SpotifyArtistSummary[] = [];
 
 export function renderPicker(context: PickerContext): void {
 	pickerContext = context;
+	setStepHeading(STEP_2_HEADING);
+
 	const content = getContentElement();
 	content.innerHTML = `
-		<p class="signed-in-as m-b-40" id="signed-in-as"></p>
+		<p class="signed-in-as" id="signed-in-as"></p>
 
 		<p>
-			Paste a link to a public Spotify playlist to import its artists, and/or search for artists by
-			name. (Private playlists and Spotify's own playlists like Today's Top Hits can't be imported.)
+			Search for artists by name, and/or paste a link to a public Spotify playlist to import its artists.
 		</p>
 		<p class="m-b-40">
-			To get a playlist link: right-click on it → "Share" → "Copy link to playlist". Then paste it below.
+      Private playlists and Spotify's own playlists like Today's Top Hits can't be imported.
 		</p>
+
+		<div class="form-group">
+			<label class="control-label" for="artist-search">Search for artists</label>
+			<input type="text" id="artist-search" class="form-control narrow-input" placeholder="eg: Crowded House"
+				spellcheck="false" autocomplete="off" />
+			<div id="search-status" class="import-status" hidden></div>
+		</div>
 
 		<div class="form-group">
 			<label class="control-label" for="playlist-input">Paste a public Spotify playlist link</label>
@@ -60,14 +70,8 @@ export function renderPicker(context: PickerContext): void {
 					placeholder="https://open.spotify.com/playlist/…" spellcheck="false" autocomplete="off" />
 				<button type="button" class="btn btn-primary" id="import-playlist">Import</button>
 			</div>
+			<span class="form-helper">To get a playlist link: right-click on it <span class="aligned-top">→</span> "Share" <span class="aligned-top">→</span> "Copy link to playlist"</span>
 			<div id="playlist-status" class="import-status" hidden></div>
-		</div>
-
-		<div class="form-group">
-			<label class="control-label" for="artist-search">Or search for artists</label>
-			<input type="text" id="artist-search" class="form-control narrow-input" placeholder="eg: Crowded House"
-				spellcheck="false" autocomplete="off" />
-			<div id="search-status" class="import-status" hidden></div>
 		</div>
 
 		<div id="search-results" class="search-results" hidden></div>
@@ -75,7 +79,7 @@ export function renderPicker(context: PickerContext): void {
 		<!-- The whole "Subscribe to artists" section stays hidden until the
 		list has at least one artist (toggled in updateSelectionUi) -->
 		<div id="selection-section" hidden>
-			<h1>Subscribe to artists</h1>
+			<h1>Step 3: subscribe to artists</h1>
 			<p id="selection-summary"></p>
 
 			<div class="followed-artists-list-container">

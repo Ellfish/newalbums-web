@@ -1,7 +1,9 @@
 import {
+	STEP_1_HEADING,
 	getContentElement,
 	postJson,
 	setStatus,
+	setStepHeading,
 	type MagicLinkSentResponse,
 } from "./shared";
 
@@ -13,16 +15,18 @@ import {
  */
 
 export function renderEmailGate(message: string | null): void {
+	setStepHeading(STEP_1_HEADING);
+
 	const content = getContentElement();
 	content.innerHTML = `
 		<p class="m-b-40">
-			First, enter your email address. We'll send you a sign-in link that verifies your email
-			and keeps you signed in for 24 hours – no password needed.
+			Enter your email address and we'll send you a sign-in link that verifies your email
+			and keeps you signed in for 24 hours – no password or Spotify login needed.
 		</p>
 
 		<div class="form-group">
 			<label class="control-label" for="email">Your email address</label>
-			<input type="email" id="email" class="form-control" placeholder="name@example.com"
+			<input type="email" id="email" class="form-control narrow-input" placeholder="name@example.com"
 				spellcheck="false" autocomplete="off" />
 		</div>
 		<button type="button" class="btn btn-primary btn-lg" id="send-link">Email me a sign-in link</button>
@@ -69,6 +73,9 @@ async function requestMagicLink(): Promise<void> {
 }
 
 function renderCheckYourInbox(statusMessage: string): void {
+	//Still step 1 until the emailed link brings them back with a token
+	setStepHeading(STEP_1_HEADING);
+
 	const content = getContentElement();
 	content.innerHTML = `
 		<p id="inbox-message" class="m-b-20"></p>

@@ -1,4 +1,4 @@
-import { TOKEN_STORAGE_KEY, postJson, type ValidatedTokenResponse } from "./shared";
+import { STEP_2_HEADING, TOKEN_STORAGE_KEY, postJson, setStepHeading, type ValidatedTokenResponse } from "./shared";
 import { renderEmailGate } from "./email-gate";
 import { renderPicker } from "./picker";
 
@@ -15,9 +15,11 @@ export function initSubscribeFlow(): void {
 
 async function init(): Promise<void> {
 	//A token in the URL is the magic-link click: consume it, then strip it
-	//from the address bar (it's a credential)
+	//from the address bar (it's a credential). Show step 2's heading straight
+	//away so it doesn't flash step 1 while the token validates
 	const urlToken = new URLSearchParams(window.location.search).get("token");
 	if (urlToken) {
+		setStepHeading(STEP_2_HEADING);
 		window.history.replaceState({}, "", window.location.pathname);
 		await tryUnlock(urlToken);
 		return;
@@ -25,6 +27,7 @@ async function init(): Promise<void> {
 
 	const storedToken = sessionStorage.getItem(TOKEN_STORAGE_KEY);
 	if (storedToken) {
+		setStepHeading(STEP_2_HEADING);
 		await tryUnlock(storedToken);
 		return;
 	}

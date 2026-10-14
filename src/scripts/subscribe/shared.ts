@@ -47,6 +47,10 @@ export const SEARCH_DEBOUNCE_MS = 400;
 export const MIN_SEARCH_LENGTH = 2;
 export const TOKEN_STORAGE_KEY = "subscribeAccessToken";
 
+/** The page-level heading text per flow step (the h1 lives in the page markup) */
+export const STEP_1_HEADING = "Step 1: your email";
+export const STEP_2_HEADING = "Step 2: search for artists";
+
 /**
  * JSON POST that throws an Error carrying the HTTP status, so callers can
  * distinguish an expired token (401) from other errors.
@@ -90,4 +94,10 @@ export function plural(
 
 export function getContentElement(): HTMLElement {
 	return document.getElementById("subscribe-content")!;
+}
+
+/** Sets the page-level step heading (the h1 in the page markup) */
+export function setStepHeading(text: string): void {
+	const heading = document.getElementById("step-heading");
+	if (heading) heading.textContent = text;
 }
